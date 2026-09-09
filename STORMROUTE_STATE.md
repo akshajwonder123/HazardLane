@@ -1,15 +1,15 @@
 # StormRoute working state
 
-Updated: 2026-09-08. Status: initial inspection.
+Updated: 2026-09-09. Status: milestone 1 complete and verified; begin geometry/risk subsystem next.
 
 ## Product definition
 Map-first weather-aware driving route comparison, with real road routes, multipoint forecasts, US official alerts, optional mapped road attributes and road events. Deterministic localized Low/Medium/High risk; never a safety guarantee. No paid API or generative AI dependency.
 
 ## Starting state / repository structure
-The selected workspace `C:\Users\aksha\OneDrive\Documents\ChatGPT\Stormroute` was empty (including hidden files), with no Git repository, code, configuration, tests, or project instructions. The requested existing repository has not been provided. Repository location requested from owner; continue independent provider verification meanwhile.
+Owner supplied `C:\Users\aksha\OneDrive\Desktop\Pyhton\StormRoute`. Inspected all app source, configuration, docs and tests. Copied 52 source files into selected workspace, excluding environments, credentials, dependencies and generated output. Original remains available; local Git baseline `40c1458` preserves inspected source. No pre-existing Git history/AGENTS.md. Original backend: 29/29 tests pass.
 
 ## Current architecture / normalized models
-No existing implementation available. Planned separation: API input validation, replaceable providers, cache, geometry sampling, normalized forecasts/alerts/roads/events, deterministic segment risk, route aggregation/comparison, accessible responsive map UI. Models and exact stack pending source inspection.
+Original: Next.js 15, React 19, TypeScript, Tailwind 3; FastAPI single-location API. Retain Next/React and lockfile. New route service uses TypeScript and standard Request/Response for one Node deployment or Sites Worker, removing the separate Python hosting prerequisite. Most old provider/domain/scoring code needs replacement for geometry, batching and severe-alert logic regardless of runtime. Retire old runtime after replacement validation. Frontend lib holds domain/geometry/risk, server holds providers/cache/API/runtime adapters. Sites registered privately in .openai/hosting.json; no deployment yet.
 
 ## Data-provider decisions
 Evaluate MapLibre + OpenFreeMap; Photon autocomplete; Valhalla with OSRM fallback; batched Open-Meteo forecasts; NWS official alerts; bounded Overpass metadata; configured legitimate WZDx feeds. Verify documentation and live behavior before adopting.
@@ -21,23 +21,27 @@ To implement and calibrate: nonlinear precipitation/gust/visibility hazards, pre
 Planned: short weather/alerts caching, longer geocoding/routing and road metadata caching, deduplicated concurrent requests, bounded sizes and timeouts. Final durations pending implementation.
 
 ## Completed functionality
+- Milestone 1: Next map-first responsive interface, route entry shell, swap, methodology dialog, planned result rendering and nullable normalized domain models. Removed obsolete Mapbox dependency and location-only UI. Search/analysis API deliberately not connected yet; no production mock results.
+- Verified milestone 1: frontend production build succeeds; threshold test passes; real OpenFreeMap roads render in browser at 1440×900 and 390×844; methodology opens/closes, no horizontal overflow. Browser tab id `1` (provider tab `7519625c-427b-404f-840e-0af7706c06d3`).
+- MapLibre 6 requires a separate module worker + shared module. `scripts/prepare-assets.mjs` copies these and their license automatically before dev/build. Fixed canvas sizing and separate `.next-dev` output to avoid concurrent preview/build corruption.
 - Read full supplied goal objective.
 - Inspected selected workspace and registered project; confirmed empty.
 
 ## Incomplete functionality / known bugs
-All application functionality remains to implement or recover from source. No code yet to assess for bugs.
+Route functionality pending. Old defects: missing weather coerced to zero; minimum one-hour analysis cache; generic watch/warning counts; weak tree/elevation proxies; Safe terminology; paid Mapbox autocomplete; no ice, snow or route model.
 
 ## Test status
 Not started. Required suites: geometry sampling; provider normalization/failure/partial data; cache; hazard calibration and interactions; severe geographic alerts; aggregation protecting short dangerous segments; route comparison; real provider and responsive browser validation.
 
 ## Setup / environment
-Windows PowerShell. Node, Python 3.13 and Git available. npm command and Docker not presently on PATH. No keys required by intended MVP. Setup commands will be recorded after framework selection.
+In `frontend`: `npm ci`, `npm run dev`, `npm test`, `npm run build`. Node 22+ recommended. Active preview http://localhost:3000, retained exec session 97875. npm on this machine: `C:\Users\aksha\OneDrive\Desktop\Pyhton\StormRoute\.tools\node-v24.18.0-win-x64\npm.cmd`. API/startup scripts still pending; old Python service is baseline only. No keys required. Source installation succeeded; esbuild postinstall is pending npm allow-scripts review but optional platform binary may suffice. Do not bypass package security policy.
 
 ## Provider limitations / technical decisions
 Never use public Nominatim for autocomplete. Hosted community services are replaceable and have limits/no uptime guarantee. Missing road metadata is unknown, never a penalty. OSM is static mapped data, not pavement inspection. Road event coverage must be explicit and cannot imply nationwide closure knowledge.
 
 ## Implementation plan / current next task
-1. Locate existing source or confirm empty-workspace initialization; inspect all source before architectural changes.
+USER REQUIREMENT: finish and verify each major step, keep valid runnable source, checkpoint Git and update this file before starting the next step. Current next: geometry sampling/intersection and calibrated deterministic risk/route comparison with automated fixtures. Do not redo milestone 1. Then provider/API integration, end-to-end UI validation, docs/startup and private deployment. Sites project is registered but unpublished.
+1. DONE: inspect supplied original source, preserve Git baseline and run its 29 passing backend tests.
 2. Build normalized providers and bounded cache; geometry sampling and calibrated risk/comparison engine with fixtures/tests.
 3. Build map-first responsive UI, autocomplete, route analysis, localized risks, explanations and confidence states.
 4. Validate several live journeys and phone/tablet/desktop behavior; fix failures.

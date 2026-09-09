@@ -1,5 +1,7 @@
 # StormRoute
 
+> **Route MVP in progress.** The maintained frontend now opens a responsive road map and route planner. Run `npm ci` and `npm run dev` in `frontend`. Route services are being implemented incrementally; see [STORMROUTE_STATE.md](STORMROUTE_STATE.md) for the verified milestone and exact next task. The single-location documentation below describes the preserved starting implementation and will be replaced before release.
+
 StormRoute is a U.S.-focused MVP for estimating **weather-related road hazard risk** at either ZIP-code or street-address level. It combines public weather and environmental signals, keeps the scoring logic transparent, and explains why a location landed in a given travel-risk category.
 
 ## MVP Scope
