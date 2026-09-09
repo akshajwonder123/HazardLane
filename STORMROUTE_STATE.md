@@ -64,3 +64,5 @@ Road-event research candidate: official Iowa DOT 511 page https://iowadot.gov/tr
 
 User model-efficiency instructions are preserved in docs/OPERATING_POLICY.md and AGENTS.md. Full acceptance criteria remain docs/GOAL_OBJECTIVE.md. Root owns integration/state. Completed independent workers: geometry (terra/medium) and road-event research (luna/low); do not depend on their live sessions to resume.
 
+
+Milestone-2 final verification: production build completed successfully (compile, type/lint checks, static export). All 37 tests pass. Integrated source checkpoint: e7e796b. Working tree checked clean immediately after that checkpoint; this final build record is the only follow-up documentation change. No new milestone started during the usage-limit save request.
