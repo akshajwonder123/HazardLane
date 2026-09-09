@@ -31,7 +31,7 @@ Planned: short weather/alerts caching, longer geocoding/routing and road metadat
 Route functionality pending. Old defects: missing weather coerced to zero; minimum one-hour analysis cache; generic watch/warning counts; weak tree/elevation proxies; Safe terminology; paid Mapbox autocomplete; no ice, snow or route model.
 
 ## Test status
-Not started. Required suites: geometry sampling; provider normalization/failure/partial data; cache; hazard calibration and interactions; severe geographic alerts; aggregation protecting short dangerous segments; route comparison; real provider and responsive browser validation.
+Verified: original Python baseline 29/29; new frontend threshold test 1/1; production build succeeds; desktop and phone map/interface checks pass. Not yet implemented: geometry, provider failure/partial data, cache, hazard interactions, severe geographic alerts, aggregation, recommendation tests or live application end-to-end analysis. Provider probes alone are not application end-to-end verification.
 
 ## Setup / environment
 In `frontend`: `npm ci`, `npm run dev`, `npm test`, `npm run build`. Node 22+ recommended. Active preview http://localhost:3000, retained exec session 97875. npm on this machine: `C:\Users\aksha\OneDrive\Desktop\Pyhton\StormRoute\.tools\node-v24.18.0-win-x64\npm.cmd`. API/startup scripts still pending; old Python service is baseline only. No keys required. Source installation succeeded; esbuild postinstall is pending npm allow-scripts review but optional platform binary may suffice. Do not bypass package security policy.
@@ -40,6 +40,7 @@ In `frontend`: `npm ci`, `npm run dev`, `npm test`, `npm run build`. Node 22+ re
 Never use public Nominatim for autocomplete. Hosted community services are replaceable and have limits/no uptime guarantee. Missing road metadata is unknown, never a penalty. OSM is static mapped data, not pavement inspection. Road event coverage must be explicit and cannot imply nationwide closure knowledge.
 
 ## Implementation plan / current next task
+Checkpoint: `72b2192` contains the verified milestone-1 source. Working tree was clean when checked after the usage-limit warning. Full objective and new model-efficiency/continuity policy are saved in `docs/GOAL_OBJECTIVE.md` and `docs/OPERATING_POLICY.md`; `AGENTS.md` directs future sessions to them. Do not restart the goal. Root owns this file and integration. Use cheaper bounded workers where useful; no concurrent coding against unsettled interfaces.
 USER REQUIREMENT: finish and verify each major step, keep valid runnable source, checkpoint Git and update this file before starting the next step. Current next: geometry sampling/intersection and calibrated deterministic risk/route comparison with automated fixtures. Do not redo milestone 1. Then provider/API integration, end-to-end UI validation, docs/startup and private deployment. Sites project is registered but unpublished.
 1. DONE: inspect supplied original source, preserve Git baseline and run its 29 passing backend tests.
 2. Build normalized providers and bounded cache; geometry sampling and calibrated risk/comparison engine with fixtures/tests.
