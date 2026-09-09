@@ -1,6 +1,6 @@
 # StormRoute working state
 
-Updated: 2026-09-09. Status: milestone 1 complete and verified; begin geometry/risk subsystem next.
+Updated: 2026-09-09. Status: milestones 1 and 2 implemented; see the latest milestone-2 checkpoint at the end for verification and next task.
 
 ## Product definition
 Map-first weather-aware driving route comparison, with real road routes, multipoint forecasts, US official alerts, optional mapped road attributes and road events. Deterministic localized Low/Medium/High risk; never a safety guarantee. No paid API or generative AI dependency.
@@ -47,3 +47,20 @@ USER REQUIREMENT: finish and verify each major step, keep valid runnable source,
 3. Build map-first responsive UI, autocomplete, route analysis, localized risks, explanations and confidence states.
 4. Validate several live journeys and phone/tablet/desktop behavior; fix failures.
 5. Finish README, reproducible startup/deployment, attribution and limitations; publish validated MVP.
+
+## Milestone 2 checkpoint (2026-09-09)
+
+Supersedes the milestone-1-only status above. Geometry and deterministic risk modules are implemented and root-reviewed. Geometry worker corrections include malformed rings, distance ordering, antipodal rounding and antimeridian fixtures. Risk calculation supports nonlinear precipitation, wind, visibility, snow/freezing interactions, bounded road modifiers, explicit official-alert severity floors, closure evidence, distance-weighted exposure/P90/peak floors, missing-data states and practical detour recommendations. Exact mathematics and calibration assumptions: docs/RISK_MODEL.md.
+
+Verification: 37 automated tests pass, including a narrow warning polygon between weather samples producing a critical route result, a five-mile dangerous stretch inside a 1,000 km journey, unknown weather, geometry edge cases and detour limits. TypeScript check passed before the final integration fixture; final production build outcome recorded below. These are deterministic fixture checks, not live end-to-end verification or a scientifically validated crash probability model.
+
+Current files: frontend/lib/geometry.ts, frontend/lib/risk-engine.ts, their test files, docs/RISK_MODEL.md. No provider/API implementation exists yet. Frontend remains a runnable map/entry shell; /api/search and /api/analyze still require implementation. Original Python runtime remains baseline only.
+
+Exact next task: establish server provider/result and shared bounded HTTP/cache interfaces, then independently implement routing/geocoding, weather/NWS, and road metadata/events providers with explicit file ownership. Root integrates geographically split route segments, arrival-time forecasts, API input constraints and Node/Worker adapters. Never give a missing provider a clear-data status. After API integration, perform actual live route/browser checks, rewrite setup/README and publish the validated application. Do not redo milestones 1 or 2 unless a concrete defect is found.
+
+Provider findings to preserve: Photon public autocomplete returned real coordinates; Valhalla returned real primary/alternate routes but shape was polyline6 despite shape_format:geojson (decode or request format:osrm). Disable predicted/current traffic costing. Open-Meteo supports batched coordinates and hourly driving variables (C, mm, cm, km/h, metres). NWS active land alerts included many null geometries, so affectedZones resolution and exact intersections are necessary; never assign whole-state alerts to a route. Cache alerts at least 60 seconds, weather short, OSM longer. Bound Overpass queries to a few route sample areas and match nearby roadway geometry before using modifiers. Public hosted services have limits and no SLA.
+
+Road-event research candidate: official Iowa DOT 511 page https://iowadot.gov/travel-tools/iowa-511/511-data-feeds links public WZDx https://iowa-atms.cloud-q-free.com/api/rest/dataprism/wzdx/wzdxfeed. Research observed HTTP 200/version 4.0. Root must independently verify freshness, dates, impacts and geometry before adoption. MultiPoint duplicated endpoints are common and cannot be treated as a precise centerline. Filter all-lanes-open and inactive events. Represent partial jurisdiction/work-zone-only coverage honestly. A Utah feed was stale (2023) and rejected. Avoid printing raw USDOT registry rows: some URLs contain provider keys.
+
+User model-efficiency instructions are preserved in docs/OPERATING_POLICY.md and AGENTS.md. Full acceptance criteria remain docs/GOAL_OBJECTIVE.md. Root owns integration/state. Completed independent workers: geometry (terra/medium) and road-event research (luna/low); do not depend on their live sessions to resume.
+
