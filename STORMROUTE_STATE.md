@@ -1,3 +1,39 @@
+# Resume checkpoint — 2026-09-10
+
+GOAL ACTIVE / MVP INCOMPLETE. User requested saving promptly before usage limits. This section supersedes older next-task/status statements below. Full objective: docs/GOAL_OBJECTIVE.md. User's pasted model-efficiency/continuity policy is already preserved verbatim in docs/OPERATING_POLICY.md and summarized in AGENTS.md; do not restart the goal.
+
+## Saved work and verification
+
+- Working application: Next/React map UI, real Photon/Valhalla/Open-Meteo/NWS/Overpass/Iowa providers, normalized deterministic risk analysis, Node API/static server and Worker entry. Prior integrated checkpoint b0af370; generated Next declaration ignore checkpoint 0a42dbe.
+- Runtime, full production build, real DC–Baltimore browser analysis and desktop/phone/tablet checks passed in the previous milestone. Live Iowa full analysis passed. Existing 85 tests rerun at this save: 85 passed, zero failures. These tests do NOT cover the newly discovered audit bugs below.
+- README replaced with current installation, architecture, privacy, caches, limitations and validation commands. THIRD_PARTY.md added; principal license table checked against installed package metadata. Obsolete backend/ Python baseline removed only after replacement runtime validation; original source at C:\Users\aksha\OneDrive\Desktop\Pyhton\StormRoute untouched and baseline retained in Git. No runtime references to the retired backend found in current scripts/frontend/docs/README.
+- No new risk-code edits were started after audit; preserve runnable current behavior while fixing one issue at a time with regression tests. Full MVP must not be called complete or published as verified yet.
+
+## Exact next task: fix final audit findings, with regressions
+
+Read-only astra/high final_risk_audit completed, changed no files. Root must independently review and integrate findings:
+
+1. P1 frontend/server/providers/routing.ts (around line126): alternate deduplication averages only nine geometry samples and discards meaningful short detours before risk analysis. Offline reproduction: primary [[-94,41],[-93,41]] vs alternate [[-94,41],[-93.81,41],[-93.8,41.01],[-93.79,41],[-93,41]] returns only one route despite a 1.1km local deviation. Preserve distinct provider alternatives; deduplicate effectively identical geometry only. Avoid quadratic geometry traversal on long routes.
+2. P1 frontend/server/analyzer.ts (around line23): event adapter validates road name/direction, then analyzer reprojects event to globally nearest edge, losing that evidence. Reproduction: eastbound Road B at latitude41.6, westbound Road A at41.6001, westbound Road A closure point [-93.6,41.60001]. Provider accepts Road A, analyzer puts closure on Road B, also altering arrival filtering. Carry normalized matched route-position evidence or repeat identical road/direction validation in projection; preserve provider independence of risk engine.
+3. P2 frontend/server/analyzer.ts (around line72): midpoint time filtering without temporal cuts loses narrow warning onset. 10km/600s route, warning at km4–4.1 (arrival04:00–04:06), onset04:05 produces score0/no hazard. Split spatial intervals at relevant time-derived distances before filtering; also cover event date boundaries. Preserve existing conservative treatment of current warnings expiring before arrival.
+4. P2 frontend/server/providers/alerts.ts (around lines165/198): any US zone intersecting route bounding rectangle incorrectly establishes full US coverage. Toronto–Montreal envelope with NY zone candidates + empty active feed says available; mixed US/Canada routes also appear fully covered. Establish coverage against actual route geometry; mixed coverage partial, unavailable evidence unknown. Do not replace conservative null-geometry alert discovery with sparse point sampling.
+
+## Remaining work after audit fixes
+
+- Make production dist/client staging fresh: current recursive copy leaves old hashed assets. Validate every resolved removal/staging path stays inside workspace/generated output.
+- UI privacy text currently says no journey saving although transient server caching exists; align with README. Add Photon/Iowa source links in methodology; review small text. Check duration rounding and coverage rounding only if a concrete defect warrants changes.
+- Finish live/browser verification: outside-US and differing-length journeys, swap/cancel/failure/hazard focus; reset temporary viewport and retain one handoff preview. Prior browser bindings/tabs and process handles may disappear across interruption, inspect before reuse. Last dev session77279 was API8788 + UI3000; do not assume active.
+- Verify clean install/test/build/start from exact checkpoint source in an isolated generated copy without inherited node_modules/assets; prior full production build passed but isolated clean setup remains undone.
+- Package and deploy existing private Sites project only after corrections/verification, then verify deployed API/providers/static ASSETS contract. Worker dispatch currently unit-tested only. Existing .openai/hosting.json project appgprj_6aa0d6b6a8e881918055225955eaf259; expected https://stormroute.fabled-brush-2155.chatgpt.site; no deployment yet. Do not recreate project. Follow Sites skills, refresh credentials securely, never commit/output credentials, verify owner-only access.
+- Final requirement audit, concise consolidated state and final verified checkpoint. Only then mark full goal complete.
+
+## Resume commands / environment
+
+From repository root: npm run setup; npm test; npm run build; npm run dev; npm start (production after build). Node22+ intended. This Windows host has Node24 but npm is not separately on PATH; installed npm.cmd is C:\Users\aksha\OneDrive\Desktop\Pyhton\StormRoute\.tools\node-v24.18.0-win-x64\npm.cmd. Native esbuild/Git writes require sandbox escalation here. Do not silently bypass approval policy. No API keys required. Read README for precise scripts/settings. Existing test command completed with all85 passing during this checkpoint; no fresh production rebuild needed for documentation/backend retirement because current runtime code unchanged.
+
+---
+
+Earlier verified milestone records follow (superseded status/next-task text retained for evidence):
 # StormRoute working state
 
 Updated: 2026-09-09 local / 2026-09-10 UTC. Goal ACTIVE and incomplete. Latest completed work: core provider adapters, bounded HTTP/cache and API validation shell. Read docs/GOAL_OBJECTIVE.md for full acceptance criteria and docs/OPERATING_POLICY.md for delegation/continuity policy. Do not restart verified work.

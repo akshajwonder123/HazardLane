@@ -1,266 +1,121 @@
 # StormRoute
 
-> **Route MVP in progress.** The maintained frontend now opens a responsive road map and route planner. Run `npm ci` and `npm run dev` in `frontend`. Route services are being implemented incrementally; see [STORMROUTE_STATE.md](STORMROUTE_STATE.md) for the verified milestone and exact next task. The single-location documentation below describes the preserved starting implementation and will be replaced before release.
+A map-first weather-aware driving planner. Choose an origin and destination, compare real road routes, and see Low, Medium, or High Risk along the journey. Scores are a transparent experimental hazard index—not a crash probability or a guarantee of safe travel.
 
-StormRoute is a U.S.-focused MVP for estimating **weather-related road hazard risk** at either ZIP-code or street-address level. It combines public weather and environmental signals, keeps the scoring logic transparent, and explains why a location landed in a given travel-risk category.
+StormRoute uses public, keyless services and does not call a generative-AI API at runtime. The default configuration is intended for a small noncommercial demonstration, not high-volume navigation.
 
-## MVP Scope
+## Run locally
 
-1. U.S.-only geocoding and NOAA alert enrichment.
-2. One backend analysis route: `POST /analyze`.
-3. No accounts, databases, maps, or saved searches in v1.
-4. Server-side public API calls only.
-5. Address-level tree coverage is optional enrichment, not a hard dependency.
-6. Responses include a confidence score and source notes.
+Prerequisites: **Node.js 22 or newer with npm**, and an internet connection for maps and live data. No Python, Docker, database, API key, account registration, or geographic download is required.
 
-## Architecture
+From the repository root:
 
-- `frontend/`
-  - Next.js + TypeScript + TailwindCSS MVP
-  - Home page for location entry and a dedicated `/results` page for analysis output
-- `backend/`
-  - FastAPI service with explainable scoring
-  - Geocoding, weather fetch, NOAA alert enrichment, and Overpass tree-coverage enrichment
-
-## Public Data Sources
-
-- **Open-Meteo Weather API**
-  - Current precipitation
-  - Past 24h and next 12h hourly forecast data
-  - Wind speed, gusts, visibility, humidity, and dew point
-- **U.S. Census Geocoder**
-  - Primary address geocoder for full U.S. street addresses
-- **Open-Meteo Geocoding**
-  - ZIP-code lookup and postal-area resolution
-- **NOAA / NWS API**
-  - Active zone-based alerts to reinforce flood and wind context
-- **OpenStreetMap Overpass API**
-  - Optional nearby green-feature lookup for address-level tree-fall context
-
-## Scoring Model
-
-StormRoute keeps internal `0-100` risk values for:
-
-- `floodRisk`
-- `treeRisk`
-- `windRisk`
-- `visibilityRisk`
-
-### Overall weighting
-
-ZIP searches:
-
-```text
-overallRisk =
-floodRisk * 0.38 +
-windRisk * 0.24 +
-visibilityRisk * 0.20 +
-treeRisk * 0.18
-```
-
-Address searches:
-
-```text
-overallRisk =
-treeRisk * 0.34 +
-floodRisk * 0.32 +
-windRisk * 0.20 +
-visibilityRisk * 0.15
-```
-
-### Component logic
-
-- **Flood risk**
-  - Rainfall intensity
-  - Recent + near-term rainfall accumulation
-  - Elevation as a lighter proxy
-  - Relevant NWS flood or severe-weather alerts as meaningful reinforcement signals
-- **Tree-fall risk**
-  - Wind gusts
-  - Sustained wind
-  - Wet-ground proxy from rainfall
-  - Address-only nearby mapped green coverage when Overpass succeeds
-- **Wind risk**
-  - Wind gusts weighted more than sustained wind
-  - Relevant NWS wind or severe-weather alerts as meaningful reinforcement signals
-- **Visibility risk**
-  - Forecast visibility when available
-  - Rainfall intensity
-  - Fog proxy from humidity and dew point spread
-
-### Risk categories
-
-- `0-24` = Safe
-- `25-54` = Slight Risk
-- `55-100` = High Risk
-
-## Fallback Behavior
-
-- If a **U.S. street address** cannot be matched at address level, StormRoute returns a clear error instead of silently degrading to a broader place match.
-- If **NOAA** alerts fail, StormRoute still returns a score using weather data only.
-- If **Overpass** fails, address tree risk still works using wind + rainfall signals, but confidence is reduced.
-- If visibility is missing from the weather payload, StormRoute uses rain and fog proxies with a source note.
-
-## Project Structure
-
-```text
-StormRoute/
-|-- backend/
-|   |-- app/
-|   |   |-- api/
-|   |   |-- core/
-|   |   |-- services/
-|   |   |-- domain.py
-|   |   |-- main.py
-|   |   `-- schemas.py
-|   |-- tests/
-|   |-- .env.example
-|   `-- requirements.txt
-|-- frontend/
-|   |-- app/
-|   |-- components/
-|   |-- lib/
-|   |-- .env.example
-|   |-- package.json
-|   `-- tailwind.config.ts
-`-- README.md
-```
-
-## Backend Setup
-
-```powershell
-cd StormRoute\backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item .env.example .env
-uvicorn app.main:app --reload
-```
-
-The backend loads `.env` automatically from the `backend/` folder.
-
-For reproducible production or CI installs, use:
-
-```powershell
-pip install -r requirements.lock.txt
-```
-
-Keep `requirements.txt` for lightweight local dependency bootstrapping and `requirements.lock.txt` for pinned deployments.
-
-### Backend environment variables
-
-```text
-FRONTEND_ORIGIN=http://localhost:3000,http://127.0.0.1:3000
-REQUEST_TIMEOUT_SECONDS=8
-CACHE_TTL_SECONDS=3600
-CACHE_MAX_ENTRIES=1024
-OVERPASS_RADIUS_METERS=350
-OVERPASS_TIMEOUT_SECONDS=2.5
-ENABLE_OVERPASS=true
-ENABLE_NOAA_ALERTS=true
-DEFAULT_USER_AGENT=StormRoute/0.1 (contact: your-email@example.com)
-NOAA_USER_AGENT=StormRoute/0.1 (contact: your-email@example.com)
-OVERPASS_URL=https://overpass-api.de/api/interpreter
-```
-
-The API runs at `http://127.0.0.1:8000`.
-
-## Frontend Setup
-
-Install Node.js first if it is not already installed.
-
-```powershell
-cd StormRoute\frontend
-Copy-Item .env.example .env.local
-npm install
+```sh
+npm run setup
 npm run dev
 ```
 
-Set `VITE_MAPBOX_TOKEN=your-public-mapbox-token` in `frontend/.env.local` to enable Mapbox AddressAutofill for street-address mode. `NEXT_PUBLIC_MAPBOX_TOKEN` also works directly, and the Next config bridges `VITE_MAPBOX_TOKEN` into the browser build automatically.
+Open **http://localhost:3000**. The development command starts both Next.js and the API on port 8788. The first page compilation can take longer than later requests. Frontend changes reload automatically; restart development after changing server code. Stop with Ctrl+C.
 
-The frontend home page runs at `http://localhost:3000`, ZIP searches route to `/results?type=zip&location=20105`, and address searches route to `/results?type=address&location=1600%20Pennsylvania%20Avenue%20NW%20Washington%20DC%2020500`.
+For the production-style build and server:
 
-## API Contract
-
-### Request
-
-```json
-{
-  "location": "20105",
-  "type": "zip"
-}
+```sh
+npm run build
+npm start
 ```
 
-or
+This serves the built website and API together at **http://localhost:3000**. Stop development before starting production on the same port. `PORT` changes the production port; `HOST=0.0.0.0` permits connections beyond the local machine when intentionally hosting it.
 
-```json
-{
-  "location": "123 Main Street Fairfax VA",
-  "type": "address"
-}
+## What it does
+
+- Photon search-as-you-type with keyboard selection, cancellation of stale searches, and origin/destination swap.
+- Valhalla automobile routes and up to two distinct alternatives using static speeds, without live traffic ETA.
+- Adaptive sampling at roughly 2 km spacing, capped at 64 points per route. Forecast requests are deduplicated and batched across routes.
+- Open-Meteo hourly forecasts selected for estimated arrival. Precipitation, snowfall, and gusts use the enclosing hour-ending aggregate; instantaneous variables use the nearest in-horizon hour.
+- Exact route intersections with NWS warning polygons. County/forecast-zone alerts with no polygon are resolved through NOAA GIS candidate areas and NWS zone boundaries.
+- Localized risk colors, hazard explanations and approximate locations, route comparison, and explicit data-coverage details.
+- Sparse OSM road attributes and fresh Iowa work-zone reports. Missing information stays unknown.
+
+## Method and limitations
+
+The deterministic model emphasizes precipitation intensity, damaging gusts, low visibility, snow, and precipitation near freezing. Dry cold alone adds no risk. Mapped bridges and unpaved roads can modestly amplify relevant weather hazards; unknown road tags never add a penalty. Official driving-related warnings and verified reported closures establish strong score floors.
+
+Scores are bounded 0–100: **Low <30**, **Medium 30–59**, **High ≥60**. Route aggregation combines distance-weighted exposure, the 90th percentile, and peak/critical floors. A short High Risk section cannot disappear in a long clear route. Alternatives must offer a material improvement within explicit time/distance budgets; Low Risk normally retains the standard route. See [the full mathematical model and calibration](docs/RISK_MODEL.md).
+
+Forecast samples do not measure every metre of pavement. Longer routes have coarser spacing, arrival times are estimates, and conditions may change. NWS describes the current US outlook; a warning expiring before estimated arrival remains visible with a reminder to check updates. Non-US official-alert coverage is unavailable. Polygon intersections use a local longitude/latitude plane, not a polar geodesic engine.
+
+OSM describes static mapped attributes, not present pavement, potholes, treatment, flooding depth, or inspection results. Only a small number of roadway locations are checked, and effects are restricted to those locations.
+
+The Iowa WZDx feed includes construction projects, not all incidents or closures. Reports must be fresh and within their stated period. Geometry often contains reported points rather than a road centerline; points are not connected into invented affected segments. Direction and road identity must match. Recurring schedules do not establish a confirmed active closure. An empty report list never proves that no closures exist.
+
+Weather failures preserve routes with unknown coverage; available warnings can still establish danger. Routing failure prevents analysis. Follow official warnings, signs, road closures, and local authorities regardless of the score. This is not turn-by-turn navigation or an emergency decision system.
+
+## Architecture
+
+```text
+frontend/app, components     Next.js static UI, MapLibre map
+frontend/lib                 normalized models, geometry, risk and recommendations
+frontend/server/providers    replaceable geocoding/routing/weather/alerts/roads/events
+frontend/server/analyzer.ts  spatial/time assembly and deterministic explanations
+frontend/server/api.ts       bounded API requests, rate limits and response handling
+frontend/server/http-client.ts  caching, coalescing, timeouts and origin restrictions
+frontend/server/runtime-*    Node server and portable Worker adapters
 ```
 
-### Response
+`npm run build` produces `dist/client`, the Worker at `dist/server/index.js`, and the Node server at `dist/node/server.mjs`. The Node runtime uses no separate backend installation. The original single-location Python implementation is preserved in Git history (`40c1458`) and in the owner's original source folder; it is no longer the active application.
 
-```json
-{
-  "inputType": "address",
-  "resolvedLocation": "123 Main St, Fairfax, VA",
-  "latitude": 38.85,
-  "longitude": -77.3,
-  "overallRisk": 67,
-  "category": "High Risk",
-  "floodRisk": 74,
-  "treeRisk": 63,
-  "windRisk": 70,
-  "visibilityRisk": 28,
-  "confidence": 78,
-  "confidenceLevel": "medium",
-  "summary": "High-risk weather conditions may affect travel. The strongest signals point to rainfall-driven flooding with added wind exposure pressure.",
-  "factors": [
-    "Heavy rain intensity reaches about 0.42 in per hour.",
-    "Recent plus near-term rainfall adds up to roughly 1.65 in."
-  ],
-  "unavailableDataSources": [
-    "OpenStreetMap Overpass"
-  ],
-  "sourceNotes": [
-    "Resolved with the U.S. Census geocoder for U.S. address-level matching.",
-    "NOAA/NWS active alerts were used to reinforce flood and wind context."
-  ]
-}
-```
+API endpoints:
 
-## Local Verification
+| Method and path | Purpose |
+|---|---|
+| `GET /api/search?q=...` | 3–160 character query; returns normalized `locations` |
+| `POST /api/analyze` | JSON `{origin, destination}` using selected locations; returns route geometry, segments, scores, hazards and coverage |
+| `GET /api/health` | Runtime health without upstream requests |
 
-Backend checks that do not require live API access:
+Coordinates use longitude/latitude order in geometry. Selected locations contain `id`, `label`, `lat`, `lon`, and optional `countryCode`. Analysis requests are limited to 4 KB; endpoints must be at least 100 m and at most 6,000 km apart. Provider responses, geometry sizes and durations are independently bounded. Long/out-of-horizon weather remains unknown.
 
-```powershell
-cd StormRoute\backend
-.venv\Scripts\python.exe -m unittest discover -s tests
-.venv\Scripts\python.exe -m pip check
-cd ..
-python -m compileall backend\app backend\tests
-```
+## Configuration and public-service limits
 
-Frontend production build:
+Defaults work without configuration. The Node server accepts optional server-side environment variables: `GEOCODER_URL`, `ROUTER_URL`, `WEATHER_URL`, `NWS_URL`, `NWS_GIS_URL`, `OVERPASS_URL`, and `WZDX_URL`. These must implement the existing adapter's protocol; changing a URL does not translate a different API schema. No provider URL is accepted from the browser. `.env` files are not loaded automatically; use environment variables or Node's `--env-file` option when needed. No environment file is required for the default setup.
 
-```powershell
-cd StormRoute\frontend
-npm run test
-npm run typecheck
+The Worker uses the same provider factory and defaults; platform-specific configuration can be passed to that factory by its runtime adapter. It requires an `ASSETS` binding for `dist/client`. Sites metadata is in `.openai/hosting.json`; private hosting must be validated before treating a local build as deployed.
+
+| Data | Cache lifetime |
+|---|---:|
+| Location search | 24 hours |
+| Driving route | 6 hours |
+| Hourly forecast | 10 minutes |
+| Active alerts | 60 seconds |
+| Zone boundaries and road metadata | 24 hours |
+| Iowa work-zone feed | 5 minutes; reject feed snapshots over 15 minutes old |
+
+The in-memory upstream cache holds at most 256 entries / 24 MB and coalesces identical concurrent requests. Six upstream requests run at once, with a bounded queue and provider-specific timeouts. Redirects are prohibited and requests can reach only configured provider origins. HTTP 429 responses trigger a short host cooldown.
+
+The demonstration API permits at most 2 analyses per minute, 20 per hour, and 40 per day per process, plus bounded per-client requests. These are **not distributed quotas**: multiple processes, restarts, or Worker instances have independent state. Keep deployment small/private; use shared rate enforcement and suitable self-hosted/open infrastructure before scaling. Public endpoints can throttle or fail and have no service guarantee. They are replaceable interfaces, not permanent infrastructure commitments.
+
+Open-Meteo's free hosted API is for noncommercial use and has upstream limits of fewer than 10,000 calls/day, 5,000/hour and 600/minute; coordinate batching does not imply unlimited use. See its [current terms](https://open-meteo.com/en/terms). Photon asks for fair usage and may throttle; see [Photon's service terms](https://photon.komoot.io/). No paid plan is required by this project.
+
+## Tests and live checks
+
+```sh
+npm test
 npm run build
 ```
 
-Live endpoint smoke test:
+Offline tests cover scenario calibration, short dangerous sections, warning intersections and holes, date-line geometry, missing data, alternate utility, batching/timestamps, malformed providers, road/event matching, API validation and cache restrictions. Build performs TypeScript and Next validation.
 
-```powershell
-Invoke-RestMethod -Uri http://127.0.0.1:8000/analyze -Method Post -ContentType "application/json" -Body '{"location":"20105","type":"zip"}'
+Optional explicit live checks from `frontend` (these contact public providers):
+
+```sh
+node --import tsx scripts/check-providers.ts
+node --import tsx scripts/check-providers.ts --iowa --analysis
+node --import tsx scripts/check-runtime.ts
 ```
 
-## Notes
+The last check expects the production-style website already running on port 3000. Live checks can legitimately report provider outages; do not replace those failures with mock production results. Verified milestones and remaining acceptance checks are recorded in [STORMROUTE_STATE.md](STORMROUTE_STATE.md).
 
-- StormRoute estimates **road hazard pressure**, not official closures or emergency instructions.
-- ZIP-code scores are broader and less spatially precise than address scores.
-- Overpass vegetation data is a useful proxy, but it is not a direct measure of tree health or road overhang.
-- This MVP analyzes one location at a time. It does not yet evaluate full routes or turn-by-turn road segments.
+## Privacy and attribution
+
+No account, journey-history database, advertising, analytics SDK, or runtime AI service is included. Search text and coordinates go to relevant providers. Responses are temporarily cached in server memory; providers and hosting infrastructure have their own logging/retention practices. Map tiles are fetched by the browser. Do not infer that third-party requests are anonymous or never logged.
+
+The map displays OpenFreeMap, OpenMapTiles, and OpenStreetMap attribution. Weather is provided by Open-Meteo (CC BY 4.0); StormRoute transforms those forecasts into an experimental index. NWS/NOAA provides US alerts and reference boundaries. Iowa DOT provides regional construction reports. See [THIRD_PARTY.md](THIRD_PARTY.md) for links and dependency notices. No endorsement by a data provider is implied.
