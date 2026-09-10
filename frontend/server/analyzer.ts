@@ -9,20 +9,16 @@ export interface AnalysisProviders { router:RoutingProvider; weather:WeatherProv
 const missing=<T>(value:T,name:string):ProviderResult<T>=>({value,status:{state:'unavailable',detail:`${name} could not be checked; coverage is unknown.`}});
 async function optional<T>(task:()=>Promise<ProviderResult<T>>,fallback:T,name:string):Promise<ProviderResult<T>> {try{return await task();}catch{return missing(fallback,name);}}
 interface Interval<T> {startKm:number;endKm:number;value:T}
-/** Event providers already validate road identity and direction. Project only reported points, never connect them. */
+/** Retain provider-validated road/direction matches and clip each report to its matched edge. */
 function eventIntervals(route:DrivingRoute,distances:number[],events:RoadEvent[]):Interval<RoadEvent>[] {
   const result:Interval<RoadEvent>[]=[];
-  for(const event of events)for(const p of event.coordinates){
-    let best=Infinity,position=0;
-    const cos=Math.cos(p[1]*Math.PI/180);
-    for(let i=1;i<route.coordinates.length;i++){
-      const a=route.coordinates[i-1],b=route.coordinates[i];
-      const ax=(a[0]-p[0])*111.32*cos,ay=(a[1]-p[1])*110.574,dx=(b[0]-a[0])*111.32*cos,dy=(b[1]-a[1])*110.574;
-      const square=dx*dx+dy*dy;if(!square)continue;
-      const t=Math.max(0,Math.min(1,-(ax*dx+ay*dy)/square)),distance=Math.hypot(ax+t*dx,ay+t*dy);
-      if(distance<best){best=distance;position=distances[i-1]+t*(distances[i]-distances[i-1]);}
+  for(const event of events){
+    if(event.routeMatch?.routeId!==route.id)continue;
+    for(const {edgeIndex,fraction} of event.routeMatch.points){
+      if(!Number.isInteger(edgeIndex)||edgeIndex<0||edgeIndex>=distances.length-1||!Number.isFinite(fraction)||fraction<0||fraction>1)continue;
+      const start=distances[edgeIndex],end=distances[edgeIndex+1],position=start+fraction*(end-start);
+      result.push({startKm:Math.max(start,position-.035),endKm:Math.min(end,position+.035),value:event});
     }
-    if(best<=.035)result.push({startKm:Math.max(0,position-.035),endKm:Math.min(route.distanceKm,position+.035),value:event});
   }
   return result;
 }

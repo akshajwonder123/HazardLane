@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAnalyzer, AnalysisProviders } from '../server/analyzer';
+import { createRoadEventProvider } from '../server/providers/events';
 import type { DrivingRoute, RoadEvent, Weather, WeatherAlert } from '../lib/domain';
 const time='2026-09-10T00:00:00Z',now=()=>Date.parse(time);
 const origin={id:'a',label:'A',lat:0,lon:0},destination={id:'b',label:'B',lat:0,lon:10};
@@ -33,14 +34,44 @@ test('a mapped bridge is restricted to its measured sample area, not an entire f
   const mappedKm=r.segments.filter(s=>s.roads).reduce((sum,s)=>sum+s.endKm-s.startKm,0);assert.ok(mappedKm>0&&mappedKm<=.040001);assert.ok(r.segments.some(s=>s.hazards.some(h=>h.kind==='bridge-ice')));
 });
 test('reported MultiPoint closures do not color the unreported road between endpoints',async()=>{
-  const event:RoadEvent={id:'event',name:'Test road',description:'Reported closure',closed:true,coordinates:[[4,0],[6,0]],geometryType:'MultiPoint',start:time,end:'2026-09-11T00:00:00Z',direction:'eastbound',source:'https://iowadot.gov/'};
+  const event:RoadEvent={id:'event',name:'Test road',description:'Reported closure',closed:true,coordinates:[[4,0],[6,0]],routeMatch:{routeId:route.id,points:[{edgeIndex:0,fraction:.4},{edgeIndex:0,fraction:.6}]},geometryType:'MultiPoint',start:time,end:'2026-09-11T00:00:00Z',direction:'eastbound',source:'https://iowadot.gov/'};
   const result=await createAnalyzer(providers({events:{events:async()=>({value:[event],status})}}),now).analyze(origin,destination);
   const r=result.routes[0];assert.equal(r.score,95);assert.ok(r.highRiskKm<.141);assert.equal(r.segments.find(s=>s.startKm<=500&&s.endKm>500)?.level,'Low Risk');
 });
 test('a work-zone period ending before arrival does not become an active closure',async()=>{
-  const event:RoadEvent={id:'event',name:'Test road',description:'Reported closure',closed:true,coordinates:[[5,0]],start:time,end:'2026-09-10T00:05:00Z',direction:'eastbound',source:'https://iowadot.gov/'};
+  const event:RoadEvent={id:'event',name:'Test road',description:'Reported closure',closed:true,coordinates:[[5,0]],routeMatch:{routeId:route.id,points:[{edgeIndex:0,fraction:.5}]},start:time,end:'2026-09-10T00:05:00Z',direction:'eastbound',source:'https://iowadot.gov/'};
   const r=(await createAnalyzer(providers({events:{events:async()=>({value:[event],status})}}),now).analyze(origin,destination)).routes[0];assert.equal(r.score,0);assert.equal(r.hazards.length,0);
 });
 test('no route is an actionable failure rather than an empty successful analysis',async()=>{
   await assert.rejects(createAnalyzer(providers({router:{routes:async()=>[]}}),now).analyze(origin,destination),/No driving route/);
+});
+
+test('Iowa closure retains its validated road and direction through analysis and arrival filtering',async()=>{
+  const parallel:DrivingRoute={...route,coordinates:[[-93.7,41.6],[-93.5,41.6],[-93.5,41.6001],[-93.7,41.6001]],distanceKm:34,durationSeconds:600,maneuvers:[
+    {startIndex:0,endIndex:1,name:'Road B'}, {startIndex:1,endIndex:2,name:'Connector'}, {startIndex:2,endIndex:3,name:'Road A'},
+  ]};
+  const makeEvents=(end:string)=>createRoadEventProvider({json:async()=>({road_event_feed_info:{update_date:time},features:[{
+    id:'parallel-closure',properties:{start_date:'2026-09-09T00:00:00Z',end_date:end,vehicle_impact:'all-lanes-closed',core_details:{event_type:'work-zone',road_names:['Road A'],direction:'westbound',description:'Construction'}},
+    geometry:{type:'MultiPoint',coordinates:[[-93.6,41.60001]]},
+  }]})},undefined,now);
+  const p=providers({router:{routes:async()=>[parallel]},events:makeEvents('2026-09-11T00:00:00Z')});
+  const eventResult=await p.events.events(parallel);
+  assert.deepEqual(eventResult.value[0].routeMatch.points.map(p=>p.edgeIndex),[2]);
+  const result=(await createAnalyzer(p,now).analyze(origin,destination)).routes[0];
+  assert.equal(result.score,95);
+  const affected=result.segments.filter(s=>s.hazards.some(h=>h.kind==='event:parallel-closure'));
+  assert.ok(affected.length>0);
+  assert.ok(affected.every(s=>s.startKm>17&&s.roadName==='Road A'));
+  assert.ok(affected.every(s=>s.coordinates.every(c=>Math.abs(c[1]-41.6001)<1e-8)));
+  // The incompatible first pass arrives before six minutes, the matched pass after.
+  p.events=makeEvents('2026-09-10T00:06:00Z');
+  assert.equal((await createAnalyzer(p,now).analyze(origin,destination)).routes[0].score,0);
+});
+
+test('event positions from another route or outside valid edges cannot create hazards',async()=>{
+  const base:RoadEvent={id:'event',name:'Test road',description:'Closure',closed:true,coordinates:[[5,0]],routeMatch:{routeId:'other',points:[{edgeIndex:0,fraction:.5}]},start:time,end:'2026-09-11T00:00:00Z',direction:'eastbound',source:'https://iowadot.gov/'};
+  for(const routeMatch of [base.routeMatch,{routeId:route.id,points:[{edgeIndex:99,fraction:.5},{edgeIndex:0,fraction:2}]}]){
+    const result=await createAnalyzer(providers({events:{events:async()=>({value:[{...base,routeMatch}],status})}}),now).analyze(origin,destination);
+    assert.equal(result.routes[0].score,0);
+  }
 });

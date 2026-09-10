@@ -6,7 +6,8 @@ const FEED='https://iowa-atms.cloud-q-free.com/api/rest/dataprism/wzdx/wzdxfeed'
 const SOURCE='https://iowadot.gov/travel-tools/iowa-511/511-data-feeds';
 const DIRECTIONS:Record<string,Coordinate>={northbound:[0,1],southbound:[0,-1],eastbound:[1,0],westbound:[-1,0]};
 /** Match a reported point to actual route geometry; never join WZDx MultiPoint endpoints. */
-function nearRoute(point:Coordinate,route:DrivingRoute,direction:string,names:string[]):boolean {
+function matchRoute(point:Coordinate,route:DrivingRoute,direction:string,names:string[]):RoadEvent['routeMatch']['points'] {
+  const matches:RoadEvent['routeMatch']['points']=[];
   const normalize=(s:string)=>s.toUpperCase().replace(/INTERSTATE/g,'I').replace(/HIGHWAY|ROUTE|\bHWY\b/g,'').replace(/[^A-Z0-9]/g,'');
   const wanted=names.map(normalize).filter(Boolean);
   const scale=Math.cos(point[1]*Math.PI/180);
@@ -23,9 +24,9 @@ function nearRoute(point:Coordinate,route:DrivingRoute,direction:string,names:st
     const road=route.maneuvers.find(m=>m.startIndex<=i-1&&m.endIndex>=i)?.name;
     const actual=road?normalize(road):'';
     if(!actual||!wanted.some(name=>name===actual || (name.length>=4&&actual.length>=4&&(name.includes(actual)||actual.includes(name)))))continue;
-    return true;
+    matches.push({edgeIndex:i-1,fraction:t});
   }
-  return false;
+  return matches;
 }
 function mightCrossIowa(route:DrivingRoute):boolean {
   if(!route.coordinates.length)return false;
@@ -57,12 +58,13 @@ export function createRoadEventProvider(client:JsonClient,feedUrl=FEED,now:()=>n
       const coords=geometry.coordinates as Coordinate[];
       // Preserve only reported points that can be tied to the named route road.
       // For LineString, retaining matched vertices as points avoids inventing the extent of a partly matched line.
-      const matched=coords.filter(p=>nearRoute(p,route,direction,names));
-      const unique=[...new Map(matched.map(p=>[p.join(','),p])).values()];
+      const matches=coords.map(point=>({point,positions:matchRoute(point,route,direction,names)})).filter(m=>m.positions.length);
+      const unique=[...new Map(matches.map(m=>[m.point.join(','),m.point])).values()];
+      const positions=[...new Map(matches.flatMap(m=>m.positions).map(p=>[`${p.edgeIndex}:${p.fraction}`,p])).values()];
       if(!unique.length)continue;
       const scheduled=/schedule|nightly|weekdays|weekends|intermittent|daily|overnight/i.test(description);
       const closed=impact==='all-lanes-closed'&&!scheduled&&direction!=='unknown'&&direction!=='undefined';
-      events.push({id,name:names.join(' / '),description:`${description}${scheduled?' Restrictions may follow a recurring schedule; an active closure is not confirmed.':''} Reported locations are approximate; affected extent may be longer.`,closed,coordinates:unique,geometryType:'MultiPoint',start,end,direction,source:SOURCE});
+      events.push({id,name:names.join(' / '),description:`${description}${scheduled?' Restrictions may follow a recurring schedule; an active closure is not confirmed.':''} Reported locations are approximate; affected extent may be longer.`,closed,coordinates:unique,routeMatch:{routeId:route.id,points:positions},geometryType:'MultiPoint',start,end,direction,source:SOURCE});
       if(events.length>=100)break;
     }
     return{value:events,status:{state:'partial',updatedAt:updated,detail:`Iowa construction reports only: ${events.length} spatially matched reports. Point locations and schedules may be approximate. This does not cover all closures, incidents, or roads.`}};

@@ -2,6 +2,13 @@
 
 GOAL ACTIVE / MVP INCOMPLETE. User requested saving promptly before usage limits. This section supersedes older next-task/status statements below. Full objective: docs/GOAL_OBJECTIVE.md. User's pasted model-efficiency/continuity policy is already preserved verbatim in docs/OPERATING_POLICY.md and summarized in AGENTS.md; do not restart the goal.
 
+## Audit fix 2 completed — preserve closure road/direction matches
+
+Supersedes audit finding2 below. Normalized RoadEvent now requires routeMatch containing the route ID and validated edgeIndex/fraction points. Iowa provider preserves all compatible road/name/direction matches. Analyzer uses those positions directly and clips the35m evidence interval to its matched edge, never reprojecting onto a nearer incompatible road. Foreign-route and invalid-edge evidence is rejected. Provider-specific payloads remain outside the risk engine. Other event providers/fixtures must supply this normalized match contract.
+
+Root verified full90-test suite and TypeScript noEmit. New integration regression uses the actual Iowa adapter with parallel eastbound Road B and westbound Road A: closure colors only Road A; expiry uses the later Road A arrival. Additional regression rejects invalid/other-route positions. Existing MultiPoint extent and provider tests pass. An initial test selected an incorrect hazard-kind string; corrected to the engine's actual event ID before final passing run. No production build/live check this step; those final gates remain pending.
+
+Exact next task: audit finding3, temporal cuts for warning onset and event start/end within spatial hazard intervals. Then finding4, actual US coverage, and remaining release checks below. Findings1 and2 are fixed; goal remains incomplete.
 ## Audit fix 1 completed — alternate geometry preservation
 
 Supersedes audit finding1 below. Routing deduplication now compares every vertex breakpoint from both paths using a linear merge and maximum1m tolerance, instead of averaging nine widely spaced samples. It retains localized hazard-avoiding detours and equal-length paths with different bends; it removes equivalent geometry with extra/repeated vertices and handles dateline interpolation. Root reviewed implementation; three regression tests added. All88 tests pass and TypeScript noEmit passes. Runtime API/model contracts unchanged. No new production build or live-provider check was run for this pure normalization change; final build/live gates remain pending.

@@ -24,6 +24,8 @@ export interface WeatherAlert {
 }
 export interface RoadEvent {
   id: string; name: string; description: string; closed: boolean; coordinates: Coordinate[];
+  /** Provider-validated positions on this specific route; never reproject onto a nearer road. */
+  routeMatch: { routeId: string; points: { edgeIndex: number; fraction: number }[] };
   geometryType?: 'LineString' | 'MultiPoint';
   start: string; end: string; direction: string; source: string;
 }
