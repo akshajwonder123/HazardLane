@@ -2,6 +2,13 @@
 
 GOAL ACTIVE / MVP INCOMPLETE. User requested saving promptly before usage limits. This section supersedes older next-task/status statements below. Full objective: docs/GOAL_OBJECTIVE.md. User's pasted model-efficiency/continuity policy is already preserved verbatim in docs/OPERATING_POLICY.md and summarized in AGENTS.md; do not restart the goal.
 
+## Audit fix 3 completed — temporal hazard boundaries
+
+Supersedes audit finding3 below. Analyzer cuts warning intervals at onset/expiry and event intervals at start/end using the existing proportional-distance ETA model. Midpoint classification now operates only within temporally uniform intervals. Arrival comparisons retain numeric precision; ISO display timestamps remain standard. Current warnings expiring before arrival still retain risk with the existing check-for-updates explanation. Mathematical assumptions documented in docs/RISK_MODEL.md.
+
+Root verification: all92 tests pass, TypeScript noEmit passes, full production build passes (Next compile/type/static export plus Node and Worker bundles). New regressions preserve the active final second of a narrow warning crossing and a one-second event window within its reported section. This build covers integrated audit fixes1–3. Actual live/deployed verification remains pending.
+
+Exact next task: audit finding4, establish US alert coverage from actual route/zone geometry rather than envelope candidates. Current alerts adapter only fetches geometry for zones with active unresolved alerts; empty-feed envelope overlap falsely claims available coverage. Keep conservative envelope discovery for null-geometry alerts, bounded cached boundary requests, and distinguish complete route coverage, mixed coverage, outside coverage and unresolved coverage. Tests currently use sparse fictional county geometry while asserting available; update fixtures honestly and add Toronto–Montreal envelope false-positive and cross-border tests. Findings1–3 are fixed. Final UI/live, clean-install, fresh-build staging and private Sites release gates below still remain.
 ## Audit fix 2 completed — preserve closure road/direction matches
 
 Supersedes audit finding2 below. Normalized RoadEvent now requires routeMatch containing the route ID and validated edgeIndex/fraction points. Iowa provider preserves all compatible road/name/direction matches. Analyzer uses those positions directly and clips the35m evidence interval to its matched edge, never reprojecting onto a nearer incompatible road. Foreign-route and invalid-edge evidence is rejected. Provider-specific payloads remain outside the risk engine. Other event providers/fixtures must supply this normalized match contract.

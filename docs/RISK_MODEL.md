@@ -6,6 +6,8 @@ This deterministic index expresses relative driving hazards, not accident probab
 
 Weather uses °C, hourly precipitation in mm, hourly snowfall in cm, sustained wind/gusts in km/h, and visibility in metres. Values are nullable. The provider layer must validate units, physical ranges, timestamps and geometry before scoring. Callers must pass only geographically intersecting alerts and temporally relevant, spatially matched road events. Weather is selected for estimated arrival along the route. Active official alerts describe the current official outlook; they cannot guarantee conditions at a future arrival.
 
+The analyzer splits hazard sections at spatial entry/exit and at warning onset or event start/end times converted to route distance using the same proportional-distance ETA model. This preserves short active portions that midpoint-only filtering would miss. Current warnings remain visible after their stated expiry with a check-for-updates explanation; expiry is not evidence of future safety. Road-event positions retain the provider-validated route edge and travel direction, with approximate point influence clipped to that edge rather than projected onto a nearby incompatible road.
+
 ## Local physical hazards
 
 Each row below defines a piecewise-linear curve between anchors. Slopes are deliberately unequal; heavy precipitation and damaging gusts have much more influence than light rain or an ordinary breeze.

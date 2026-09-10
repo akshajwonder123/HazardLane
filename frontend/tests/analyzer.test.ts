@@ -75,3 +75,21 @@ test('event positions from another route or outside valid edges cannot create ha
     assert.equal(result.routes[0].score,0);
   }
 });
+
+test('warning onset during a narrow crossing preserves the active final second',async()=>{
+  const short={...route,distanceKm:10,durationSeconds:600};
+  const alert:WeatherAlert={...warning,onset:'2026-09-10T00:04:05Z',geometry:{type:'Polygon',coordinates:[[[4,-1],[4.1,-1],[4.1,1],[4,1],[4,-1]]]}};
+  const result=(await createAnalyzer(providers({router:{routes:async()=>[short]},alerts:{alerts:async()=>({value:[alert],status})}}),now).analyze(origin,destination)).routes[0];
+  assert.equal(result.score,100);
+  assert.ok(Math.abs(result.highRiskKm-1/60)<1e-7);
+  assert.ok(result.hazards.every(h=>h.startKm>=245/60-1e-8&&h.endKm<=4.1+1e-8));
+});
+
+test('event start and end inside a reported section produce only the active extent',async()=>{
+  const short={...route,distanceKm:10,durationSeconds:600};
+  const event:RoadEvent={id:'timed',name:'Test road',description:'Timed closure',closed:true,coordinates:[[4.05,0]],routeMatch:{routeId:route.id,points:[{edgeIndex:0,fraction:.405}]},start:'2026-09-10T00:04:04Z',end:'2026-09-10T00:04:05Z',direction:'eastbound',source:'https://iowadot.gov/'};
+  const result=(await createAnalyzer(providers({router:{routes:async()=>[short]},events:{events:async()=>({value:[event],status})}}),now).analyze(origin,destination)).routes[0];
+  assert.equal(result.score,95);
+  assert.ok(Math.abs(result.highRiskKm-1/60)<1e-7);
+  assert.ok(result.hazards.every(h=>Math.abs(h.startKm-244/60)<1e-7&&Math.abs(h.endKm-245/60)<1e-7));
+});

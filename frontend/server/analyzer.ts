@@ -55,16 +55,25 @@ export function createAnalyzer(providers:AnalysisProviders,now:()=>number=Date.n
       const warnings=alerts.value.flatMap(alert=>areaIntervals(route.coordinates,distances,alert.geometry).map(interval=>({...interval,value:alert})));
       const work=eventIntervals(route,distances,events.value);
       const cuts=new Set<number>([0,route.distanceKm]);
+      const departureMs=Date.parse(departureTime);
+      const cutAtTime=(interval:{startKm:number;endKm:number},timestamp:string|null)=>{
+        if(!timestamp)return;
+        const position=(Date.parse(timestamp)-departureMs)/(route.durationSeconds*1000)*route.distanceKm;
+        if(Number.isFinite(position)&&position>interval.startKm&&position<interval.endKm)cuts.add(position);
+      };
       for(let i=1;i<points.length;i++)cuts.add((points[i-1].distanceKm+points[i].distanceKm)/2);
       for(const interval of [...warnings,...work]){cuts.add(interval.startKm);cuts.add(interval.endKm);}
+      // Spatial entry/exit alone is insufficient when a report changes during traversal.
+      for(const warning of warnings){cutAtTime(warning,warning.value.onset);cutAtTime(warning,warning.value.expires);}
+      for(const event of work){cutAtTime(event,event.value.start);cutAtTime(event,event.value.end);}
       points.forEach((p,i)=>{if(roads.value[i]){cuts.add(Math.max(0,p.distanceKm-.02));cuts.add(Math.min(route.distanceKm,p.distanceKm+.02));}});
       const boundaries=[...cuts].filter(Number.isFinite).sort((a,b)=>a-b),segments:RiskSegment[]=[];
       for(let i=1;i<boundaries.length;i++){
         const startKm=boundaries[i-1],endKm=boundaries[i];if(endKm-startKm<1e-8)continue;
         const middle=(startKm+endKm)/2;
         let nearest=0;points.forEach((p,j)=>{if(Math.abs(p.distanceKm-middle)<Math.abs(points[nearest].distanceKm-middle))nearest=j;});
-        const arrivalTime=new Date(Date.parse(departureTime)+1000*route.durationSeconds*middle/route.distanceKm).toISOString();
-        const arrival=Date.parse(arrivalTime);
+        const arrival=departureMs+1000*route.durationSeconds*middle/route.distanceKm;
+        const arrivalTime=new Date(arrival).toISOString();
         const localAlerts=warnings.filter(w=>middle>=w.startKm&&middle<w.endKm&&(!w.value.onset||Date.parse(w.value.onset)<=arrival)).map(w=>{
           const a=w.value;
           return a.expires&&Date.parse(a.expires)<arrival?{...a,headline:`${a.headline} This current alert expires before estimated arrival; check for updates before travel.`}:a;
