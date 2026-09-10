@@ -54,3 +54,28 @@ test('Valhalla distinguishes no route from malformed upstream results', async ()
   await assert.rejects(() => createRouter(client({ trip: { status: 171, status_message: 'No path could be found' } })).routes(origin, destination), (error: unknown) => error instanceof ProviderError && error.code === 'no-route');
   await assert.rejects(() => createRouter(client(valhalla({ summary: { length: 1, time: 1 }, legs: [{ shape: '!' }] }, [route([[-77, 38.9], [-76.6, 39.2]])]))).routes(origin, destination), (error: unknown) => error instanceof ProviderError && error.code === 'invalid-response');
 });
+
+test('Valhalla preserves short local detours that can avoid a narrow hazard', async () => {
+  const standard: [number, number][] = [[-94, 41], [-93, 41]];
+  const detour: [number, number][] = [[-94, 41], [-93.81, 41], [-93.8, 41.01], [-93.79, 41], [-93, 41]];
+  const result = await createRouter(client(valhalla(route(standard), [route(detour)]))).routes(origin, destination);
+  assert.equal(result.length, 2);
+  assert.deepEqual(result[1].coordinates, detour);
+});
+
+test('Valhalla compares every bend even when alternate lengths are equal', async () => {
+  const north: [number, number][] = [[-94, 0], [-93.81, 0], [-93.8, 0.01], [-93.79, 0], [-93, 0]];
+  const south: [number, number][] = north.map(([lon, lat]) => [lon, -lat]);
+  const result = await createRouter(client(valhalla(route(north), [route(south)]))).routes(origin, destination);
+  assert.equal(result.length, 2);
+});
+
+test('Valhalla removes identical paths with extra or repeated vertices, including the dateline', async () => {
+  for (const [standard, dense] of [
+    [[[-94, 0], [-93, 0]], [[-94, 0], [-94, 0], [-93.5, 0], [-93, 0]]],
+    [[[179, 0], [-179, 0]], [[179, 0], [180, 0], [-179, 0]]],
+  ] as [number, number][][][]) {
+    const result = await createRouter(client(valhalla(route(standard), [route(dense)]))).routes(origin, destination);
+    assert.equal(result.length, 1);
+  }
+});

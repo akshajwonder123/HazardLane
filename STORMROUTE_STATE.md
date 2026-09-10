@@ -2,6 +2,11 @@
 
 GOAL ACTIVE / MVP INCOMPLETE. User requested saving promptly before usage limits. This section supersedes older next-task/status statements below. Full objective: docs/GOAL_OBJECTIVE.md. User's pasted model-efficiency/continuity policy is already preserved verbatim in docs/OPERATING_POLICY.md and summarized in AGENTS.md; do not restart the goal.
 
+## Audit fix 1 completed — alternate geometry preservation
+
+Supersedes audit finding1 below. Routing deduplication now compares every vertex breakpoint from both paths using a linear merge and maximum1m tolerance, instead of averaging nine widely spaced samples. It retains localized hazard-avoiding detours and equal-length paths with different bends; it removes equivalent geometry with extra/repeated vertices and handles dateline interpolation. Root reviewed implementation; three regression tests added. All88 tests pass and TypeScript noEmit passes. Runtime API/model contracts unchanged. No new production build or live-provider check was run for this pure normalization change; final build/live gates remain pending.
+
+Exact next task: audit finding2, preserving validated road/direction evidence when projecting events into route segments, followed by temporal-boundary and actual US coverage fixes. Findings2–4 and release gates remain incomplete. Continue incrementally; do not redo fix1 absent a concrete defect.
 ## Saved work and verification
 
 - Working application: Next/React map UI, real Photon/Valhalla/Open-Meteo/NWS/Overpass/Iowa providers, normalized deterministic risk analysis, Node API/static server and Worker entry. Prior integrated checkpoint b0af370; generated Next declaration ignore checkpoint 0a42dbe.

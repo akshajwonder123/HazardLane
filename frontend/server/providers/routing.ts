@@ -106,25 +106,37 @@ function haversineKm(a: Coordinate, b: Coordinate): number {
   const q = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * radians) * Math.cos(b[1] * radians) * Math.sin(dLon / 2) ** 2;
   return 6371.0088 * 2 * Math.atan2(Math.sqrt(q), Math.sqrt(1 - q));
 }
-function geometryLengthKm(points: Coordinate[]): number { return points.slice(1).reduce((total, point, index) => total + haversineKm(points[index], point), 0); }
-function atDistanceFraction(points: Coordinate[], fraction: number): Coordinate {
-  const total = geometryLengthKm(points); let remaining = total * fraction;
-  for (let index = 1; index < points.length; index++) {
-    const length = haversineKm(points[index - 1], points[index]);
-    if (remaining <= length || index === points.length - 1) {
-      const ratio = length > 0 ? Math.max(0, Math.min(1, remaining / length)) : 0;
-      return [points[index - 1][0] + (points[index][0] - points[index - 1][0]) * ratio, points[index - 1][1] + (points[index][1] - points[index - 1][1]) * ratio];
-    }
-    remaining -= length;
-  }
-  return points[points.length - 1];
-}
 function geometriesAreSimilar(a: Coordinate[], b: Coordinate[]): boolean {
-  const aLength = geometryLengthKm(a); const bLength = geometryLengthKm(b);
-  if (!aLength || !bLength || Math.abs(aLength - bLength) / Math.max(aLength, bLength) > 0.08) return false;
-  let separation = 0;
-  for (let i = 0; i <= 8; i++) separation += haversineKm(atDistanceFraction(a, i / 8), atDistanceFraction(b, i / 8));
-  return separation / 9 < Math.max(0.15, Math.min(aLength, bLength) * 0.008);
+  // Only remove effectively identical geometry. A short local deviation can avoid
+  // a warning, even when its separation averaged over the whole trip is tiny.
+  const cumulative = (points: Coordinate[]) => {
+    const distances = [0];
+    for (let i = 1; i < points.length; i++) distances.push(distances[i - 1] + haversineKm(points[i - 1], points[i]));
+    return distances;
+  };
+  const ad = cumulative(a); const bd = cumulative(b);
+  const al = ad[ad.length - 1]; const bl = bd[bd.length - 1];
+  const toleranceKm = 0.001;
+  if (!al || !bl || Math.abs(al - bl) > toleranceKm) return false;
+  let ai = 1; let bi = 1;
+  const interpolate = (points: Coordinate[], distances: number[], index: number, target: number): Coordinate => {
+    const length = distances[index] - distances[index - 1];
+    const ratio = length > 0 ? Math.max(0, Math.min(1, (target - distances[index - 1]) / length)) : 0;
+    const start = points[index - 1]; const end = points[index];
+    const longitudeDelta = ((end[0] - start[0] + 540) % 360) - 180;
+    return [((start[0] + longitudeDelta * ratio + 540) % 360) - 180, start[1] + (end[1] - start[1]) * ratio];
+  };
+  if (haversineKm(a[0], b[0]) > toleranceKm) return false;
+  // Merge both vertex-distance sequences, visiting every local bend in O(n+m).
+  while (ai < a.length && bi < b.length) {
+    const fraction = Math.min(ad[ai] / al, bd[bi] / bl);
+    if (haversineKm(interpolate(a, ad, ai, fraction * al), interpolate(b, bd, bi, fraction * bl)) > toleranceKm) return false;
+    const advanceA = ad[ai] / al <= fraction;
+    const advanceB = bd[bi] / bl <= fraction;
+    if (advanceA) ai++;
+    if (advanceB) bi++;
+  }
+  return true;
 }
 
 function maneuverName(raw: UnknownRecord): string {
