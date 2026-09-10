@@ -11,6 +11,7 @@ out/
 frontend/public/vendor/
 dist/
 *.tsbuildinfo
+frontend/next-env.d.ts
 *.log
 .artifacts/
 .env.*.local
