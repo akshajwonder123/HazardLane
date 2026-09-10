@@ -61,3 +61,17 @@ Root verification: all77 tests pass and TypeScript passes. Live Des Moines->Iowa
 Exact next task: route-analysis orchestration (item2 above), then runtime/UI integration. Provider abstractions and live adapter checks are ready. Do not restart provider implementations. During orchestration, audit long-route/complex-zone intersection performance and avoid recomputing expensive intervals. Preserve alerts between weather samples, future arrival timing and short reported event locations. API remains unwired until analyzer/runtime exist.
 
 Provider milestone final build: production compile/type/lint/static export passed. All77 tests pass; live Iowa provider smoke passed. Ready to begin analyzer integration.
+
+## Analyzer milestone — 2026-09-10T01:43Z
+
+Provider checkpoint:3dd9aae. Analyzer implemented in frontend/server/analyzer.ts, service.ts composes real providers with the API factory. The API still needs a Node/Worker runtime adapter, so browser integration is NEXT. No production mocks.
+
+Analyzer batches all route forecasts once (max192samples,64perroute), fetches independent ancillary data concurrently with honest failures, cuts at weather midpoints and exact warning boundaries, keeps mapped road attributes within20m of evidence, and maps each reported work-zone point within35m. It does not connect MultiPoint endpoints or smear closure points across unreported roads. Event period must include estimated arrival. Current official alerts expiring before arrival stay visible with an explicit check-for-updates explanation; expiry is not assumed to prove future safety. Aggregation/recommendation use the shared tested engine. Geometry intersection now skips route edges outside polygon bounding rectangles to avoid unnecessary ring work. Existing geometry/dateline tests still pass.
+
+New analyzer fixtures: narrow tornado betweenforecastpoints, sameenginealternativecomparison/batchedrequest, allprovideroutages and warningoverride, bridgeextent, MultiPointclosureextent, eventexpirybeforearrival, norouteerror. Focused14tests (7analyzer+7geometry) and TypeScript pass. Fullsuite/build outcome below.
+
+Live full analyzer: node --import tsx scripts/check-providers.ts --iowa --analysis. Root run01:43:33Z exit0,elapsed1956ms: Des Moines->Iowa City primary184.246km,64samples,91segments,100%weather,score17Low; alternate196.584km,64samples,87segments,100%weather,score17Low. Primary retained. NWSavailable,OSM10of64samples eachroutepartial,workzone2primary/1alternatepartial. This is real service end-to-end data/risk verification; browser/runtime and deployed-site validation still unfinished.
+
+Exact next: implement Node API/static runtime and Worker entry using service.ts handle(Request, trustedClientId), dev8788+Next3000 startup, static production server replacing incompatible next start, root reproducible build scripts for dist/client+dist/server. Then actual browser search/analyze map, UIcorrections, setup/docscleanup, privateSitespublish andfullacceptanceaudit. Original full goal unchanged.
+
+Analyzer milestone final verification: all84 tests pass. Production compile/type/lint/static export passed. Live full Iowa analyzer exit0. Website runtime/browser integration remains next.

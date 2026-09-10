@@ -162,10 +162,22 @@ export function areaIntervals(coords: Coordinate[], distances: number[], geometr
   if (coords.length < 2 || coords.length !== distances.length || !coords.every(validCoordinate) || !validDistances(distances) ||
     !geometry || !Array.isArray(geometry.coordinates)) return [];
   const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.type === 'MultiPolygon' ? geometry.coordinates : [];
+  const bounds = polygons.map(polygon => {
+    const ring = normalizedRing(polygon?.[0], coords[0][0]);
+    if (ring.length < 3) return null;
+    return { west: Math.min(...ring.map(p => p[0])), east: Math.max(...ring.map(p => p[0])), south: Math.min(...ring.map(p => p[1])), north: Math.max(...ring.map(p => p[1])) };
+  });
   const intervals: Array<{ startKm: number; endKm: number }> = [];
   for (let index = 1; index < coords.length; index++) {
     const a = coords[index - 1], b = coords[index], length = distances[index] - distances[index - 1];
     if (length <= EPSILON) continue;
+    // Most route edges are nowhere near a localized warning. Skip all ring work
+    // when their rectangles are disjoint, preserving exact crossings elsewhere.
+    if (!bounds.some(box => {
+      if (!box) return false;
+      const shift = 360 * Math.round((a[0] - (box.west + box.east) / 2) / 360), bx = unwrap(b[0], a[0]);
+      return Math.max(a[0], bx) >= box.west + shift && Math.min(a[0], bx) <= box.east + shift && Math.max(a[1], b[1]) >= box.south && Math.min(a[1], b[1]) <= box.north;
+    })) continue;
     const parameters = [0, 1];
     for (const polygon of polygons) for (const rawRing of polygon) {
       const ring = normalizedRing(rawRing, a[0]);
