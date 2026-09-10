@@ -49,3 +49,15 @@ Sites project already registered in .openai/hosting.json: appgprj_6aa0d6b6a8e881
 Workers routing/weather finished; NWS followup and road metadata workers hit usage limit after edits, root inspected/fixed/tested saved files. Event worker failed before writing. No active workers need to be resumed to recover work. Root owns this state file and must checkpoint verified milestones before beginning the next.
 
 Final checkpoint verification: all71 tests pass; TypeScript passes; Next production compile/type/lint/static export completed successfully. Live provider smoke exit0. Full MVP remains incomplete as enumerated above.
+
+## Provider milestone completion — 2026-09-10T01:38Z
+
+Supersedes unfinished-provider item1 above: events.ts now implements the Iowa WZDx adapter and events-provider.test.ts covers freshness, active date windows, impacts, direction/name/proximity matching, recurring schedules and outside coverage. Feed must be updated within15min. Closed=true requires explicit all-lanes-closed, known compatible direction and no ambiguous recurring schedule text. MultiPoint endpoints remain reported points and are never connected into invented centerlines; only named-road matches within35m retained. Extent may be longer than reported points, clearly disclosed. GeometryType optional field added to RoadEvent; assembler must honor MultiPoint. All-line geometry is also conservatively reduced to matched reported vertices with explicit partial coverage. No nationwide closure claim.
+
+NWS empty/direct-only alert-day early return removed: GIS coverage is now checked even when there are no zone-based alerts, so outside-US routes do not falsely appear covered. Added regression fixture.
+
+Root verification: all77 tests pass and TypeScript passes. Live Des Moines->Iowa City probe (scripts/check-providers.ts --iowa) exit0:2routes,184.246km/6515.285s primary; weather8/8; NWSavailableupdated01:37:48Z,zero intersecting alerts; OSM6/8 partial; Iowa feedupdated01:37:54Z with2spatiallymatchedwork-zone reports. This validates real provider ingestion and matching, still NOT browser end-to-end risk analysis. Production build outcome below.
+
+Exact next task: route-analysis orchestration (item2 above), then runtime/UI integration. Provider abstractions and live adapter checks are ready. Do not restart provider implementations. During orchestration, audit long-route/complex-zone intersection performance and avoid recomputing expensive intervals. Preserve alerts between weather samples, future arrival timing and short reported event locations. API remains unwired until analyzer/runtime exist.
+
+Provider milestone final build: production compile/type/lint/static export passed. All77 tests pass; live Iowa provider smoke passed. Ready to begin analyzer integration.

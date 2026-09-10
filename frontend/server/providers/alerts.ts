@@ -146,7 +146,8 @@ export function createAlertProvider(
           unresolved.push(source);
         }
       }
-      if (!unresolved.length) return { value: direct, status: { state: partial ? 'partial' : 'available', detail: partial ? 'US alerts checked; some alert geometry was invalid.' : 'US official alerts checked.', ...(updatedAt ? { updatedAt } : {}) } };
+      // Query coverage even on a day with no zone alerts. An empty national feed
+      // must not make a route outside the United States look covered by NWS.
 
       const bbox = envelopes(route);
       if (!bbox) return { value: direct, status: { state: 'partial', detail: 'US alert zone lookup is incomplete for this route.', ...(updatedAt ? { updatedAt } : {}) } };

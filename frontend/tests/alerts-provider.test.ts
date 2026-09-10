@@ -8,9 +8,10 @@ const route: DrivingRoute = { id: 'r', name: 'Route', coordinates: [[0, 0], [2, 
 const polygon = (west: number, east: number) => ({ type: 'Polygon', coordinates: [[[west, -1], [east, -1], [east, 1], [west, 1], [west, -1]]] });
 const alert = (overrides: Record<string, unknown> = {}) => ({ id: 'alert-1', properties: { event: 'Flash Flood Warning', headline: 'Flooding', severity: 'Severe', onset: '2026-09-09T10:00:00Z', expires: '2026-09-09T20:00:00Z', '@id': 'https://api.weather.gov/alerts/alert-1', ...overrides }, geometry: polygon(.9, 1.1) });
 const active = (...items: unknown[]) => ({ updated: '2026-09-09T12:00:00Z', features: items });
+const directClient = (payload: unknown): JsonClient => ({json:async url=>url.includes('/query?')?{features:[{attributes:{state:'DC',fips:'11001',zone:'001'}}]}:payload});
 
 test('uses exact polygon intersections, including narrow alerts between samples', async () => {
-  const client: JsonClient = { json: async () => active(alert()) };
+  const client = directClient(active(alert()));
   const result = await createAlertProvider(client, 'https://nws.example', 'https://gis.example', () => Date.parse('2026-09-09T12:00:00Z')).alerts(route);
   assert.equal(result.status.state, 'available');
   assert.equal(result.value.length, 1);
@@ -80,9 +81,15 @@ test('uses geocode UGC fallback and marks stale or malformed active data partial
 
 test('keeps a relevant alert with a missing expiry conservatively but marks confidence partial', async () => {
   const noExpiry = alert({ expires: 'not-a-time', '@id': 'javascript:alert(1)' });
-  const client: JsonClient = { json: async () => active(noExpiry) };
+  const client = directClient(active(noExpiry));
   const result = await createAlertProvider(client, 'https://nws.example', 'https://gis.example', () => Date.parse('2026-09-09T12:00:00Z')).alerts(route);
   assert.equal(result.value.length, 1);
   assert.equal(result.value[0].url, 'https://www.weather.gov');
   assert.equal(result.status.state, 'partial');
+});
+
+test('an empty alert day does not imply official coverage outside the United States', async()=>{
+  const client:JsonClient={json:async url=>url.includes('/query?')?{features:[]}:active()};
+  const result=await createAlertProvider(client,'https://nws.example','https://gis.example',()=>Date.parse('2026-09-09T12:00:00Z')).alerts(route);
+  assert.equal(result.status.state,'outside-coverage');assert.equal(result.value.length,0);
 });

@@ -24,6 +24,7 @@ export interface WeatherAlert {
 }
 export interface RoadEvent {
   id: string; name: string; description: string; closed: boolean; coordinates: Coordinate[];
+  geometryType?: 'LineString' | 'MultiPoint';
   start: string; end: string; direction: string; source: string;
 }
 export interface Hazard { kind: string; title: string; detail: string; score: number; critical: boolean; url?: string }
