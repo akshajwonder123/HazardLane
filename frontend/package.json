@@ -5,11 +5,11 @@
   "scripts": {
     "predev": "node scripts/prepare-assets.mjs",
     "prebuild": "node scripts/prepare-assets.mjs",
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/dev.mjs",
+    "build": "next build && node scripts/build-server.mjs --production",
     "test": "node --import tsx --test tests/*.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
-    "start": "next start"
+    "start": "node ../dist/node/server.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.43.0",

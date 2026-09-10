@@ -17,8 +17,10 @@ export function JourneyMap({ routes, selectedId, focusedSegment, onSelect }: { r
     const m = map.current; const route = routes.find(r => r.id === selectedId);
     if (!m || !route?.coordinates.length) return;
     const bounds = new maplibregl.LngLatBounds(); route.coordinates.forEach(c => bounds.extend(c));
-    m.fitBounds(bounds, { padding: 60, maxZoom: 13, duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 700 });
+    const compact = (container.current?.clientWidth ?? 1000) < 500;
+    m.fitBounds(bounds, { padding: { top:60, bottom:90, left:compact?35:60, right:compact?35:60 }, maxZoom: 13, duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 700 });
   };
+  const fitRef = useRef(fit); fitRef.current = fit;
   useEffect(() => {
     if (!container.current) return;
     maplibregl.setWorkerUrl('/vendor/maplibre/maplibre-gl-worker.mjs');
@@ -50,7 +52,7 @@ export function JourneyMap({ routes, selectedId, focusedSegment, onSelect }: { r
       setLoaded(true);
     });
     m.on('error', e => { if (!m.isStyleLoaded() && e.error) setError('Map tiles are temporarily unavailable. You can still analyze and compare routes.'); });
-    const observer = new ResizeObserver(() => m.resize()); observer.observe(container.current);
+    const observer = new ResizeObserver(() => { m.resize(); fitRef.current(); }); observer.observe(container.current);
     return () => { observer.disconnect(); popup.current?.remove(); markers.current.forEach(marker => marker.remove()); m.remove(); map.current = null; };
   }, []);
   useEffect(() => {
@@ -68,7 +70,7 @@ export function JourneyMap({ routes, selectedId, focusedSegment, onSelect }: { r
   useEffect(() => {
     if (!focusedSegment || !map.current) return;
     const s = routes.find(r => r.id === selectedId)?.segments.find(s => s.id === focusedSegment);
-    if (s) map.current.fitBounds(new maplibregl.LngLatBounds(s.coordinates[0], s.coordinates.at(-1)!), { padding: 90, maxZoom: 12, duration: 600 });
+    if (s) map.current.fitBounds(new maplibregl.LngLatBounds(s.coordinates[0], s.coordinates.at(-1)!), { padding: 90, maxZoom: 12, duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 });
   }, [focusedSegment]);
   return <section className="map-surface" aria-label="Interactive driving route map">
     <div ref={container} className="map-canvas" />

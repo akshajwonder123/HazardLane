@@ -1,0 +1,12 @@
+{
+  "name": "stormroute",
+  "private": true,
+  "scripts": {
+    "setup": "node scripts/frontend.mjs ci",
+    "dev": "node scripts/frontend.mjs run dev",
+    "test": "node scripts/frontend.mjs test",
+    "build": "node scripts/frontend.mjs run build",
+    "start": "node dist/node/server.mjs"
+  },
+  "engines": { "node": ">=22" }
+}
