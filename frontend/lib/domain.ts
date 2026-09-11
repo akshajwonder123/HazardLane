@@ -48,4 +48,7 @@ export interface RouteAnalysis {
 export const riskLevel = (score: number): RiskLevel => score < 30 ? 'Low Risk' : score < 60 ? 'Medium Risk' : 'High Risk';
 export const riskColor = (level: RiskLevel | null) => level === 'Low Risk' ? '#16855c' : level === 'Medium Risk' ? '#d6a017' : level === 'High Risk' ? '#d74b48' : '#7b8893';
 export const miles = (km: number) => km * 0.621371;
-export const duration = (s: number) => s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : `${Math.floor(s / 3600)} hr ${Math.round(s % 3600 / 60)} min`;
+export const duration = (s: number) => {
+  const minutes = Math.max(1, Math.round(s / 60));
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
+};

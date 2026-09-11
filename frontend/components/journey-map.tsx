@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import { LocateFixed, Map as MapIcon } from 'lucide-react';
 import { AssessedRoute, riskColor, RiskSegment, miles } from '@/lib/domain';
 
@@ -70,7 +69,12 @@ export function JourneyMap({ routes, selectedId, focusedSegment, onSelect }: { r
   useEffect(() => {
     if (!focusedSegment || !map.current) return;
     const s = routes.find(r => r.id === selectedId)?.segments.find(s => s.id === focusedSegment);
-    if (s) map.current.fitBounds(new maplibregl.LngLatBounds(s.coordinates[0], s.coordinates.at(-1)!), { padding: 90, maxZoom: 12, duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 });
+    if (s) {
+      const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      map.current.fitBounds(new maplibregl.LngLatBounds(s.coordinates[0], s.coordinates.at(-1)!), { padding: 90, maxZoom: 12, duration: reducedMotion ? 0 : 600 });
+      const bounds = container.current?.getBoundingClientRect();
+      if (bounds && (bounds.top < 0 || bounds.bottom > innerHeight)) container.current?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
+    }
   }, [focusedSegment]);
   return <section className="map-surface" aria-label="Interactive driving route map">
     <div ref={container} className="map-canvas" />
