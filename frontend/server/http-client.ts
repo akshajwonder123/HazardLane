@@ -38,7 +38,8 @@ export function createHttpClient(config: HttpClientOptions): JsonClient {
       if ((cooldown.get(url.origin) ?? 0) > now()) throw new ProviderError('rate-limited', 'The data provider is temporarily rate limiting requests.');
       const response = await fetcher(url, {
         method: options.method ?? 'GET', body: options.body, signal: controller.signal,
-        redirect: 'error', headers: { Accept: 'application/json, application/geo+json', 'User-Agent': 'StormRoute/0.1 (weather-aware route research MVP)', ...options.headers },
+        // Some edge runtimes support only follow/manual. Never follow a redirect.
+        redirect: 'manual', headers: { Accept: 'application/json, application/geo+json', 'User-Agent': 'StormRoute/0.1 (weather-aware route research MVP)', ...options.headers },
       });
       if (response.status === 429) {
         const retry = response.headers.get('retry-after');

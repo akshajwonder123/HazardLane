@@ -44,10 +44,20 @@ test('bounds concurrency and rejects malformed JSON without poisoning later requ
   const results=await Promise.allSettled(Array.from({length:8},(_,i)=>client.json(origin+'/'+i,{ttlMs:0})));
   assert.equal(peak,2);assert.ok(results.some(r=>r.status==='rejected'));assert.ok(results.some(r=>r.status==='fulfilled'));
 });
-test('passes error redirect policy and aborts a slow provider',async()=>{
+test('passes manual redirect policy and aborts a slow provider',async()=>{
   const client=createHttpClient({allowedOrigins:[origin],fetcher:async(_url,init)=>{
-    assert.equal(init?.redirect,'error');
+    assert.equal(init?.redirect,'manual');
     return new Promise<Response>((_resolve,reject)=>init?.signal?.addEventListener('abort',()=>reject(new Error('aborted'))));
   }});
   await assert.rejects(client.json(origin,{ttlMs:0,timeoutMs:100}),/timed out/);
+});
+test('rejects redirect responses without fetching their destinations or caching them',async()=>{
+  let calls=0;
+  const client=createHttpClient({allowedOrigins:[origin],fetcher:async(url,init)=>{
+    calls++;assert.equal(new URL(String(url)).origin,origin);assert.equal(init?.redirect,'manual');
+    return new Response(null,{status:302,headers:{Location:'http://127.0.0.1/private'}});
+  }});
+  await assert.rejects(client.json(origin,{ttlMs:100}),/HTTP 302/);
+  await assert.rejects(client.json(origin,{ttlMs:100}),/HTTP 302/);
+  assert.equal(calls,2);
 });
