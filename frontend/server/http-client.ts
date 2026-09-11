@@ -72,7 +72,10 @@ export function createHttpClient(config: HttpClientOptions): JsonClient {
       }
       return value;
     } catch (error) {
-      if (error instanceof ProviderError) throw error;
+      if (error instanceof ProviderError) {
+        console.warn('Provider request failed', {origin:url.origin, code:error.code, detail:error.message});
+        throw error;
+      }
       // Infrastructure diagnostics omit request paths, coordinates and response data.
       console.error('Provider transport failure', {origin:url.origin, error:error instanceof Error ? error.name : 'UnknownError',
         detail:error instanceof Error ? error.message.replace(/https?:\/\/[^\s]+/gi,'[provider-url]').slice(0,240) : 'Unknown transport error'});
