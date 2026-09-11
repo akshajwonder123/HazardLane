@@ -83,18 +83,25 @@ function envelopes(route: DrivingRoute): string[] | null {
   return [`${Math.min(...east)},${south},180,${north}`, `-180,${south},${Math.max(...west)},${north}`];
 }
 
-function gisIds(value: unknown, layer: 2 | 8): { ids: string[]; partial: boolean } {
-  const root = record(value); if (!root || !Array.isArray(root.features)) return { ids: [], partial: true };
+function gisIds(value: unknown, layer: 2 | 8): { ids: string[]; partial: boolean; geometry: Map<string, AreaGeometry> } {
+  const geometry = new Map<string, AreaGeometry>();
+  const root = record(value); if (!root || !Array.isArray(root.features) || root.features.length > 2000) return { ids: [], partial: true, geometry };
   const ids = new Set<string>();
+  let partial = root.exceededTransferLimit === true || !!root.error;
   for (const raw of root.features) {
-    const attrs = record(record(raw)?.attributes); if (!attrs) return { ids: [...ids], partial: true };
+    const item = record(raw);
+    const attrs = record(layer === 8 ? item?.properties : item?.attributes); if (!attrs) { partial = true; continue; }
     const state = safeText(attrs.state, 2).toUpperCase();
     const code = safeText(layer === 2 ? attrs.fips : attrs.zone, 12);
-    if (!/^[A-Z]{2}$/.test(state) || !/^\d{1,5}$/.test(code)) return { ids: [...ids], partial: true };
+    if (!/^[A-Z]{2}$/.test(state) || !/^\d{1,5}$/.test(code)) { partial = true; continue; }
     const id = `${state}${layer === 2 ? 'C' : 'Z'}${code.slice(-3).padStart(3, '0')}`;
     if (UGC.test(id)) ids.add(id);
+    if (layer === 8) {
+      const boundary = areaGeometry(item?.geometry);
+      if (boundary) geometry.set(id, boundary); else partial = true;
+    }
   }
-  return { ids: [...ids], partial: root.exceededTransferLimit === true || !!root.error };
+  return { ids: [...ids], partial, geometry };
 }
 
 function isExpired(alert: WeatherAlert, now: number): boolean { return !!alert.expires && Date.parse(alert.expires) <= now; }
@@ -152,11 +159,16 @@ export function createAlertProvider(
       const bbox = envelopes(route);
       if (!bbox) return { value: direct, status: { state: 'partial', detail: 'US alert zone lookup is incomplete for this route.', ...(updatedAt ? { updatedAt } : {}) } };
       const candidates = new Set<string>();
+      const coverageGeometry: AreaGeometry[] = [];
+      const zoneGeometry = new Map<string, AreaGeometry>();
       try {
         const requests = GIS_LAYERS.flatMap(layer => bbox.map(async envelope => {
-          const query = new URLSearchParams({ f: 'json', geometry: envelope, geometryType: 'esriGeometryEnvelope', inSR: '4326', spatialRel: 'esriSpatialRelIntersects', outFields: '*', returnGeometry: 'false' });
-          const result = gisIds(await client.json(`${gisBase}/${layer}/query?${query}`, { ttlMs: ZONE_TTL }), layer);
+          // Forecast-zone GeoJSON also establishes actual route coverage. County
+          // IDs still conservatively discover non-polygon county alerts.
+          const query = new URLSearchParams({ f: layer === 8 ? 'geojson' : 'json', geometry: envelope, geometryType: 'esriGeometryEnvelope', inSR: '4326', outSR: '4326', spatialRel: 'esriSpatialRelIntersects', outFields: layer === 8 ? 'state,zone' : 'state,fips', returnGeometry: layer === 8 ? 'true' : 'false' });
+          const result = gisIds(await client.json(`${gisBase}/${layer}/query?${query}`, { ttlMs: ZONE_TTL, maxBytes: layer === 8 ? 12 * 1024 * 1024 : 4 * 1024 * 1024 }), layer);
           result.ids.forEach(id => candidates.add(id)); if (result.partial) partial = true;
+          result.geometry.forEach((geometry,id) => { coverageGeometry.push(geometry); zoneGeometry.set(id,geometry); });
         }));
         const settled = await Promise.allSettled(requests);
         if (settled.some(result => result.status === 'rejected')) partial = true;
@@ -174,8 +186,7 @@ export function createAlertProvider(
         matches.forEach(id => needed.add(id));
         if (!canonical.length) partial = true;
       }
-      const ids = [...needed]; if (ids.length > MAX_ZONES) { ids.length = MAX_ZONES; partial = true; }
-      const zoneGeometry = new Map<string, AreaGeometry>();
+      const ids = [...needed].filter(id => !zoneGeometry.has(id)); if (ids.length > MAX_ZONES) { ids.length = MAX_ZONES; partial = true; }
       await Promise.all(ids.map(async id => {
         const kind = id[2] === 'C' ? 'county' : 'forecast';
         try {
@@ -193,9 +204,18 @@ export function createAlertProvider(
         if (alert && !isExpired(alert, current) && areaIntervals(route.coordinates, distances, geometry).length) resolved.push(alert);
         }
       }
+      // Union exact intersections, not candidate counts or the route envelope.
+      const intervals = coverageGeometry.flatMap(geometry => areaIntervals(route.coordinates, distances, geometry)).sort((a,b) => a.startKm-b.startKm);
+      let coveredKm = 0, endKm = 0;
+      for (const interval of intervals) {
+        if (interval.endKm > endKm) coveredKm += interval.endKm - Math.max(endKm,interval.startKm);
+        endKm = Math.max(endKm,interval.endKm);
+      }
+      const fullCoverage = coveredKm >= route.distanceKm - 1e-6;
+      const outside = coveredKm === 0 && !partial && !direct.length && !resolved.length;
       return {
         value: [...new Map([...direct, ...resolved].map(alert => [alert.id, alert])).values()],
-        status: { state: partial ? 'partial' : 'available', detail: partial ? 'US alerts checked; some route alert zones could not be resolved.' : 'US official alerts checked.', ...(updatedAt ? { updatedAt } : {}) },
+        status: { state: outside ? 'outside-coverage' : partial || !fullCoverage ? 'partial' : 'available', detail: outside ? 'This route does not intersect supported US forecast zones; official alerts outside the US have not been checked.' : partial || !fullCoverage ? 'US alerts checked where supported; official coverage is incomplete along this route or some alert zones could not be resolved.' : 'US official alerts checked along the route.', ...(updatedAt ? { updatedAt } : {}) },
       };
     },
   };

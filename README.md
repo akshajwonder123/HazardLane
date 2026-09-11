@@ -33,6 +33,7 @@ This serves the built website and API together at **http://localhost:3000**. Sto
 - Adaptive sampling at roughly 2 km spacing, capped at 64 points per route. Forecast requests are deduplicated and batched across routes.
 - Open-Meteo hourly forecasts selected for estimated arrival. Precipitation, snowfall, and gusts use the enclosing hour-ending aggregate; instantaneous variables use the nearest in-horizon hour.
 - Exact route intersections with NWS warning polygons. County/forecast-zone alerts with no polygon are resolved through NOAA GIS candidate areas and NWS zone boundaries.
+- US alert coverage is established from the union of actual route intersections with forecast-zone boundaries. Cross-border gaps, malformed boundaries and incomplete responses remain partial; a US zone merely inside the trip's bounding rectangle does not establish coverage.
 - Localized risk colors, hazard explanations and approximate locations, route comparison, and explicit data-coverage details.
 - Sparse OSM road attributes and fresh Iowa work-zone reports. Missing information stays unknown.
 
@@ -109,6 +110,7 @@ Optional explicit live checks from `frontend` (these contact public providers):
 ```sh
 node --import tsx scripts/check-providers.ts
 node --import tsx scripts/check-providers.ts --iowa --analysis
+node --import tsx scripts/check-alert-coverage.ts
 node --import tsx scripts/check-runtime.ts
 ```
 
