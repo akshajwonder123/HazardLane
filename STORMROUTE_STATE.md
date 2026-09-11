@@ -2,6 +2,11 @@
 
 GOAL ACTIVE / MVP INCOMPLETE. User requested saving promptly before usage limits. This section supersedes older next-task/status statements below. Full objective: docs/GOAL_OBJECTIVE.md. User's pasted model-efficiency/continuity policy is already preserved verbatim in docs/OPERATING_POLICY.md and summarized in AGENTS.md; do not restart the goal.
 
+## Fresh asset staging verified — 2026-09-11
+
+frontend/scripts/build-server.mjs now clears only the resolved generated dist/client before copying the static export. It rejects linked/junction output directories and verifies resolved targets stay inside the repository before recursive removal. Root ran production server bundling/staging against the existing verified Next export, then compared every output file byte-for-byte:28files exactly match frontend/out and the deliberately planted stale asset was removed. Build/staging exited0; git diff check passed. Risk/provider source unchanged, so no redundant full risk test rerun was needed.
+
+Next: privacy/source UI polish and final browser checks; isolated clean documented setup/build/start; private Sites deployment and final acceptance audit. Coverage live gate is already complete (previous section), do not repeat it absent a defect.
 ## Coverage live verification completed — 2026-09-11T02:18Z
 
 Current account status confirmed the earlier usage limit had cleared before retrying the originally rejected command through the normal approval path. scripts/check-alert-coverage.ts completed exit0: real DC–Baltimore62.262km available (4.43s); Toronto–Montreal545.021km outside-coverage (2.74s); Detroit–Windsor2.723km partial (1.97s). Current national feed updated02:15:28Z. This completes the dedicated coverage checks; audit fixes1–4 now have regression evidence and the latest production build passed. Earlier alternate-route partial states remain honestly represented; no unsupported promotion to available was made.
