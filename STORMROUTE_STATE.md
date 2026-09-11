@@ -2,6 +2,11 @@
 
 GOAL ACTIVE / MVP INCOMPLETE. User requested saving promptly before usage limits. This section supersedes older next-task/status statements below. Full objective: docs/GOAL_OBJECTIVE.md. User's pasted model-efficiency/continuity policy is already preserved verbatim in docs/OPERATING_POLICY.md and summarized in AGENTS.md; do not restart the goal.
 
+## Coverage live verification completed — 2026-09-11T02:18Z
+
+Current account status confirmed the earlier usage limit had cleared before retrying the originally rejected command through the normal approval path. scripts/check-alert-coverage.ts completed exit0: real DC–Baltimore62.262km available (4.43s); Toronto–Montreal545.021km outside-coverage (2.74s); Detroit–Windsor2.723km partial (1.97s). Current national feed updated02:15:28Z. This completes the dedicated coverage checks; audit fixes1–4 now have regression evidence and the latest production build passed. Earlier alternate-route partial states remain honestly represented; no unsupported promotion to available was made.
+
+Next milestone: make dist/client staging fresh so old hashed assets cannot persist; verify the build removes a deliberately stale generated asset. Then finish privacy/source UI polish, final live/browser scenarios and isolated clean setup, private Sites deployment and final full-objective audit. No need to repeat the completed coverage checks absent a change or defect.
 ## Audit fix 4 implemented — final coverage verification pending (2026-09-10T21:26Z)
 
 Coverage implementation, tests, live-check script and README saved at4cdad45. Audit findings1–3 are committed through6c38396. Continue remaining coverage validation before beginning a separate major milestone.
