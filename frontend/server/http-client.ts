@@ -72,6 +72,9 @@ export function createHttpClient(config: HttpClientOptions): JsonClient {
       return value;
     } catch (error) {
       if (error instanceof ProviderError) throw error;
+      // Infrastructure diagnostics omit request paths, coordinates and response data.
+      console.error('Provider transport failure', {origin:url.origin, error:error instanceof Error ? error.name : 'UnknownError',
+        detail:error instanceof Error ? error.message.replace(/https?:\/\/[^\s]+/gi,'[provider-url]').slice(0,240) : 'Unknown transport error'});
       throw new ProviderError('unavailable', controller.signal.aborted ? 'The data provider timed out.' : 'The data provider could not be reached.');
     } finally { clearTimeout(timeout); release(); }
   }
