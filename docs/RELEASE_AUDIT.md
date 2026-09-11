@@ -1,0 +1,33 @@
+# StormRoute MVP acceptance audit
+
+Audit date: 2026-09-11. Scope: every requirement in GOAL_OBJECTIVE.md, including clean developer startup. The prior completed audits and coverage verification are accepted from their recorded checkpoints; only the hosted transport defect required additional code and checks. **Final hosted journey verification is pending. MVP is not yet declared complete.**
+
+| Acceptance area | Implementation and evidence | Result |
+|---|---|---|
+| Preserve and improve existing code | Original Desktop repository inspected and untouched; sanitized baseline40c1458; retained Next/React/TypeScript; obsolete Python removed only after replacement passed | Pass |
+| Real location search and selection | Photon adapter; keyboard autocomplete, stale-request cancellation, swap; real DC/Iowa/London browser selection | Pass locally; hosted search pending |
+| Driving routes and alternatives | Valhalla native geometry/maneuvers, primary plus up to2 distinct alternatives; local route-shape dedupe regression; real DC3routes and Iowa2routes | Pass locally; hosted journey pending |
+| Route sampling and arrival forecasts | Adaptive max64samples/route,192total; batched Open-Meteo hourly data; temporal alignment/range/unit tests; Iowa64complete forecasts, London53 | Pass |
+| Official US warnings and coverage | Direct polygons and resolved zones; exact spatial and temporal cuts; real DC available, Toronto outside, Detroit–Windsor partial | Pass |
+| Road metadata and closures | Sparse Overpass evidence restricted to matched road; Iowa WZDx freshness/name/direction/arrival validation; MultiPoint does not invent centerlines; actual Iowa reports | Pass |
+| Unknown data and failures | Nullable normalized fields, partial coverage UI; outage/malformed/rate-limit/timeout fixtures; real Photon and OSM failures surfaced | Pass |
+| Defensible calibrated risk | Piecewise nonlinear physical hazards, explicit interaction/floor rules and0–100 bounds; RISK_MODEL.md; representative calibration fixtures | Pass |
+| Short dangerous sections | Distance-weighted aggregation plus peak/critical floors; five-mile danger inside1000km and narrow tornado regressions | Pass |
+| Practical safer alternatives | Same risk engine for every route; meaningful improvement, coverage and travel budgets; Low primary retained; trivial/absurd detours rejected | Pass |
+| Localized map and explanation | Colored route sections, text risk labels, deterministic causes, hazard focus, route switching/fit; mobile hazard navigation verified | Pass locally |
+| Responsive accessible controls | Semantic labels, keyboard selection/Escape, text+color risk, loading/cancel/errors; screenshots390x844,768x1024,1280x800; no horizontal overflow | Pass |
+| UI/source/privacy polish | Readable metadata, MapLibre CSS at root, visible attribution, Photon/Iowa links, precise transient-cache privacy, duration and tiny-distance formatting | Pass |
+| Performance and robustness | Batched parallel requests, bounded concurrency/queue/cache, coalescing, no failure caching, timeouts and host cooldown; automated HTTP tests | Pass |
+| API security | Constrained bodies/locations/methods/origins, quotas, origin allowlist, no arbitrary proxy, manual redirect rejection, static path isolation | Pass |
+| Provider-independent architecture | Domain contracts, adapters, analyzer, engine, API and separate Node/Worker runtime; no provider payloads in risk engine | Pass |
+| Keyless/no paid or AI runtime | Public replaceable endpoints; no generative model calls, key/account/database/geodata prerequisites for local use; provider limits documented | Pass |
+| Documentation and attribution | README, RISK_MODEL, THIRD_PARTY, operating policy, persistent state and checkpoint history in Git | Pass; final state update pending |
+| Meaningful offline tests |95/95 full suite in clean source; subsequent focused transport/Worker suite9/9 with two new regressions; TypeScript passes | Pass |
+| Clean install/build/start | Git archive fbcf4b3 with no dependencies/output; root setup/test/build/start successful; runtime checks from clean copy on3002; later server-only change rebuilt | Pass |
+| Private Sites runtime | Owner-only audience retained; page/map load; authenticated health200/mapworker200JS/source and env404; version4 corrects edge redirect incompatibility | Hosted journey pending |
+
+## Scope and interpretation
+
+Live journeys exercised real public services on US, Canadian, cross-border and UK routes. Severe-weather and alternative-selection scenarios are deterministic fixtures, not fabricated live observations. A live tornado trip is neither necessary nor claimed. Calibration establishes plausible heuristic behavior, not measured crash prediction.
+
+The index cannot guarantee safe roads. Forecast sampling is finite, ETAs use static speeds, road tags are sparse/static, Iowa events are approximate reported positions, official alerts cover the US and current outlook, and missing data remains unknown. Public endpoints have quotas and no uptime guarantee. Per-process caches/rate limits need shared enforcement before broad public scaling. The default use is a small noncommercial demonstration.
