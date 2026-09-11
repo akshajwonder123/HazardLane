@@ -11,7 +11,8 @@ export interface HttpClientOptions {
 }
 /** Per-process bounded cache and request coalescing. Rejections are never cached as successful data. */
 export function createHttpClient(config: HttpClientOptions): JsonClient {
-  const fetcher = config.fetcher ?? fetch, now = config.now ?? Date.now;
+  // Resolve the runtime fetch inside the request and retain its global receiver.
+  const fetcher = config.fetcher ?? ((input, init) => globalThis.fetch(input, init)), now = config.now ?? Date.now;
   const origins = new Set(config.allowedOrigins.map(value => {
     const u = new URL(value);
     if (!['https:', 'http:'].includes(u.protocol) || u.username || u.password) throw new Error('Invalid configured provider origin');

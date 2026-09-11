@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 import { createHttpClient } from '../server/http-client';
 
 const origin='https://provider.example';
+test('default fetch resolves the request-time runtime binding with its global receiver',async()=>{
+  const original=globalThis.fetch;
+  const client=createHttpClient({allowedOrigins:[origin]});
+  try {
+    globalThis.fetch=async function(this:unknown){assert.equal(this,globalThis);return Response.json({ok:true});};
+    assert.deepEqual(await client.json(origin,{ttlMs:0}),{ok:true});
+  } finally {globalThis.fetch=original;}
+});
 test('coalesces concurrent requests, isolates caller mutations, expires and evicts cache',async()=>{
   let calls=0, now=0;
   const client=createHttpClient({allowedOrigins:[origin],now:()=>now,maxEntries:1,fetcher:async()=>{calls++;return Response.json({calls});}});
