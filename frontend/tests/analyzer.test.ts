@@ -28,6 +28,16 @@ test('total provider outages preserve route geometry and unknown risk, while an 
   const first=await createAnalyzer(p,now).analyze(origin,destination);assert.equal(first.routes[0].score,null);assert.equal(first.routes[0].data.alerts.state,'unavailable');assert.ok(first.routes[0].segments.length>0);
   p.alerts={alerts:async()=>({value:[warning],status})};const second=await createAnalyzer(p,now).analyze(origin,destination);assert.equal(second.routes[0].score,100);assert.equal(second.routes[0].knownWeatherPercent,0);
 });
+test('retains a weather provider rate-limit reason with each route complete count',async()=>{
+  const limited={state:'partial' as const,detail:'Hourly forecast coverage is available for 63 of 64 route samples; 1 remain unknown. Open-Meteo temporarily rate limited forecast requests.'};
+  const p=providers({weather:{forecast:async samples=>({value:samples.map((_sample,index)=>index===0?null:weather),status:limited})}});
+  const result=await createAnalyzer(p,now).analyze(origin,destination);
+  const weatherStatus=result.routes[0].data.weather;
+  assert.equal(weatherStatus.state,'partial');
+  assert.match(weatherStatus.detail,/Complete forecasts at 63 of 64 sampled locations/);
+  assert.match(weatherStatus.detail,/temporarily rate limited/i);
+  assert.equal(result.routes[0].score,0);
+});
 test('a mapped bridge is restricted to its measured sample area, not an entire forecast interval',async()=>{
   const p=providers({weather:{forecast:async s=>({value:s.map(()=>({...weather,temperatureC:1,precipitationMm:1})),status})},roads:{attributes:async(_r,s)=>({value:s.map((_x,i)=>i===20?{bridge:'yes'}:null),status})}});
   const result=await createAnalyzer(p,now).analyze(origin,destination);const r=result.routes[0];

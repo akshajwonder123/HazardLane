@@ -143,18 +143,29 @@ function responseList(value: unknown, expectedLength: number): unknown[] | null 
   return Array.isArray(value) && value.length === expectedLength ? value : null;
 }
 
-function statusFor(values: Array<Weather | null>, failedBatches: number): DataStatus {
+function batchFailureDetail(error: unknown): string {
+  if (!(error instanceof ProviderError)) return 'Open-Meteo forecast request failed.';
+  switch (error.code) {
+    case 'rate-limited': return 'Open-Meteo temporarily rate limited forecast requests.';
+    case 'invalid-response': return 'Open-Meteo returned unusable forecast data.';
+    case 'unavailable': return /timed out/i.test(error.message) ? 'Open-Meteo forecast request timed out.' : 'Open-Meteo forecast service was unavailable.';
+    default: return 'Open-Meteo forecast request failed.';
+  }
+}
+
+function statusFor(values: Array<Weather | null>, failedBatchDetails: Set<string>): DataStatus {
   const resolved = values.filter((value): value is Weather => value !== null);
   const complete = resolved.filter(weather => [weather.temperatureC, weather.precipitationMm, weather.snowfallCm, weather.windKmh, weather.gustKmh, weather.visibilityM, weather.code].every(value => value !== null)).length;
   if (resolved.length === values.length && complete === values.length && values.length > 0) return { state: 'available', detail: `Hourly forecast coverage is available for all ${values.length} route samples.` };
   if (resolved.length === 0) return {
     state: 'unavailable',
-    detail: failedBatches ? 'Open-Meteo did not return usable forecasts for the route samples.' : 'No route samples matched the returned three-day hourly forecast horizon.',
+    detail: failedBatchDetails.size ? [...failedBatchDetails].join(' ') : 'No route samples matched the returned three-day hourly forecast horizon.',
   };
   const missing = values.length - resolved.length;
+  const failureDetail = failedBatchDetails.size ? ` ${[...failedBatchDetails].join(' ')}` : '';
   return {
     state: 'partial',
-    detail: `Hourly forecast coverage is available for ${resolved.length} of ${values.length} route samples; ${missing} remain unknown${failedBatches ? ' because one or more forecast batches failed or were invalid' : ''}${complete < resolved.length ? '; some available rows have unknown fields' : ''}.`,
+    detail: `Hourly forecast coverage is available for ${resolved.length} of ${values.length} route samples; ${missing} remain unknown${complete < resolved.length ? '; some available rows have unknown fields' : ''}.${failureDetail}`,
   };
 }
 
@@ -179,7 +190,7 @@ export function createWeatherProvider(client: JsonClient, baseUrl = 'https://api
         groups.set(key, group);
       }
 
-      let failedBatches = 0;
+      const failedBatchDetails = new Set<string>();
       const allGroups = [...groups.values()];
       const batches = Array.from({ length: Math.ceil(allGroups.length / COORDINATE_BATCH_SIZE) }, (_, index) => allGroups.slice(index * COORDINATE_BATCH_SIZE, (index + 1) * COORDINATE_BATCH_SIZE));
       const fetchBatch = async (batch: CoordinateGroup[]) => {
@@ -194,13 +205,13 @@ export function createWeatherProvider(client: JsonClient, baseUrl = 'https://api
           payload = await client.json(new URL(`/v1/forecast?${parameters.toString()}`, baseUrl).toString(), {
             ttlMs: 10 * 60 * 1000, timeoutMs: 8_000, maxBytes: 1_500_000,
           });
-        } catch {
-          failedBatches++;
+        } catch (error) {
+          failedBatchDetails.add(batchFailureDetail(error));
           return;
         }
         const responses = responseList(payload, batch.length);
         if (!responses) {
-          failedBatches++;
+          failedBatchDetails.add('Open-Meteo returned unusable forecast data.');
           return;
         }
         for (let groupIndex = 0; groupIndex < batch.length; groupIndex++) {
@@ -213,7 +224,7 @@ export function createWeatherProvider(client: JsonClient, baseUrl = 'https://api
       // Two concurrent upstream batches keep long routes responsive without making
       // a burst of six requests to a free shared provider.
       for (let start = 0; start < batches.length; start += 2) await Promise.all(batches.slice(start, start + 2).map(fetchBatch));
-      return { value: values, status: statusFor(values, failedBatches) };
+      return { value: values, status: statusFor(values, failedBatchDetails) };
     },
   };
 }

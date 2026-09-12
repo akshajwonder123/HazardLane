@@ -87,7 +87,7 @@ export function createAnalyzer(providers:AnalysisProviders,now:()=>number=Date.n
       }
       const aggregate=aggregateRisk(segments);
       const complete=forecasts.filter(w=>w&&[w.temperatureC,w.precipitationMm,w.snowfallCm,w.windKmh,w.gustKmh,w.visibilityM,w.code].every(n=>n!==null)).length;
-      const weatherStatus={...weather.status,state:complete===points.length?'available' as const:complete>0?'partial' as const:'unavailable' as const,detail:`Complete forecasts at ${complete} of ${points.length} sampled locations; arrival times and conditions are approximate.`};
+      const weatherStatus={...weather.status,state:complete===points.length?'available' as const:complete>0?'partial' as const:'unavailable' as const,detail:`Complete forecasts at ${complete} of ${points.length} sampled locations.${complete<points.length?` Across requested routes: ${weather.status.detail}`:''} Arrival times and conditions are approximate.`};
       return{...route,segments,score:aggregate.score,level:aggregate.level,summary:aggregate.summary,peakScore:aggregate.peakScore,highRiskKm:aggregate.highRiskKm,knownWeatherPercent:aggregate.knownWeatherPercent,sampleCount:points.length,hazards:majorHazards(segments),data:{weather:weatherStatus,alerts:alerts.status,roads:roads.status,events:events.status}};
     });
     return{origin,destination,departureTime,analyzedAt:new Date(now()).toISOString(),routes:assessed,...recommendRoute(assessed),limitations:[

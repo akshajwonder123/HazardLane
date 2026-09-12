@@ -4,6 +4,8 @@ A map-first weather-aware driving planner. Choose an origin and destination, com
 
 StormRoute uses public, keyless services and does not call a generative-AI API at runtime. The default configuration is intended for a small noncommercial demonstration, not high-volume navigation.
 
+Private release preview: [StormRoute](https://stormroute.akshajwonder.chatgpt.site) (owner's ChatGPT sign-in required). Release acceptance is still pending: hosted forecasts are currently rate-limited by Open-Meteo, so the site shows unknown risk. Local live forecasts and clean startup have passed; see [release audit](docs/RELEASE_AUDIT.md) for remaining gates.
+
 ## Run locally
 
 Prerequisites: **Node.js 22 or newer with npm**, and an internet connection for maps and live data. No Python, Docker, database, API key, account registration, or geographic download is required.

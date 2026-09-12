@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWeatherProvider } from '../server/providers/weather';
-import type { JsonClient } from '../server/contracts';
+import { ProviderError, type JsonClient } from '../server/contracts';
 import type { Sample } from '../lib/domain';
 
 const sample = (lon: number, lat: number, arrivalTime = '2026-09-09T12:20:00Z'): Sample => ({ coordinate: [lon, lat], distanceKm: 0, arrivalTime });
@@ -99,4 +99,33 @@ test('never uses a nearest row beyond the returned forecast horizon', async () =
   assert.equal(result.value[0], null);
   assert.equal(result.status.state, 'unavailable');
   assert.doesNotMatch(urls[0], /past_days/);
+});
+
+test('keeps a safe rate-limit reason when a forecast batch fails beside usable data', async () => {
+  let calls = 0;
+  const client: JsonClient = { json: async () => {
+    calls++;
+    if (calls === 2) throw new ProviderError('rate-limited', 'https://private.example/?token=secret');
+    return Array.from({ length: 32 }, (_, index) => hourly(index, index));
+  } };
+  const result = await createWeatherProvider(client).forecast(Array.from({ length: 33 }, (_, index) => sample(index, index)));
+  assert.equal(result.status.state, 'partial');
+  assert.match(result.status.detail, /temporarily rate limited/i);
+  assert.doesNotMatch(result.status.detail, /private\.example|secret/);
+  assert.equal(result.value.filter(Boolean).length, 32);
+});
+
+test('a total forecast outage keeps values unknown and distinguishes safe failure reasons', async () => {
+  for (const [code,message,reason] of [
+    ['rate-limited','upstream quota','rate limited'],
+    ['unavailable','The data provider timed out.','timed out'],
+    ['unavailable','upstream HTTP 503','unavailable'],
+    ['invalid-response','private provider body','unusable'],
+  ] as const) {
+    const client: JsonClient={json:async()=>{throw new ProviderError(code,message);}};
+    const result=await createWeatherProvider(client).forecast([sample(0,0)]);
+    assert.deepEqual(result.value,[null]);assert.equal(result.status.state,'unavailable');
+    assert.ok(result.status.detail.includes(reason));
+    assert.doesNotMatch(result.status.detail,/private provider body|upstream/);
+  }
 });
