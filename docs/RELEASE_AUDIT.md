@@ -23,7 +23,7 @@ Audit updated: 2026-09-12. Scope: every requirement in GOAL_OBJECTIVE.md, includ
 | Keyless/no paid or AI runtime | Public replaceable endpoints; no generative model calls, key/account/database/geodata prerequisites for local use; provider limits documented | Pass |
 | Documentation and attribution | README, RISK_MODEL, THIRD_PARTY, operating policy, persistent state and checkpoint history in Git | Pass; final state update pending |
 | Meaningful offline tests |95/95 full suite in clean source; subsequent focused transport/Worker suite9/9 with two new regressions; TypeScript passes | Pass |
-| Actionable hosted forecast failures | Sanitized rate-limit/timeout/unavailable/invalid-data reasons preserved from adapter through analyzer; partial and total outage tests;21focused weather/analyzer checks and September12production build pass | Pass locally; hosted detail verification pending |
+| Actionable hosted forecast failures | Sanitized rate-limit/timeout/unavailable/invalid-data reasons preserved from adapter through analyzer; partial and total outage tests;21focused checks and September12production build pass; version6hosted API/browser/screenshot show explicit rate-limit reason with unknown risk | Pass |
 | Clean install/build/start | Git archive fbcf4b3 with no dependencies/output; root setup/test/build/start successful; runtime checks from clean copy on3002; later server-only change rebuilt | Pass |
 | Private Sites runtime | Owner-only audience retained; page/map load; authenticated health200/mapworker200JS/source and env404; unauthenticated401; version4 fixes edge redirect incompatibility; version5 logs provider failure statuses | Deployment pass; full hosted weather gate incomplete |
 
@@ -36,3 +36,5 @@ On September11 and again2026-09-12T21:35:40Z, legitimate hosted DC–Baltimore a
 Live journeys exercised real public services on US, Canadian, cross-border and UK routes. Severe-weather and alternative-selection scenarios are deterministic fixtures, not fabricated live observations. A live tornado trip is neither necessary nor claimed. Calibration establishes plausible heuristic behavior, not measured crash prediction.
 
 The index cannot guarantee safe roads. Forecast sampling is finite, ETAs use static speeds, road tags are sparse/static, Iowa events are approximate reported positions, official alerts cover the US and current outlook, and missing data remains unknown. Public endpoints have quotas and no uptime guarantee. Per-process caches/rate limits need shared enforcement before broad public scaling. The default use is a small noncommercial demonstration.
+
+Version6(49dc47c) privately deployed2026-09-12T21:44:46Z. Hosted API21:46:06Z and subsequent browser confirm explicit forecast throttling. Browser OSM recovered with12of33matched samples; NWSavailable and Iowaoutside remain honest. Coverage screenshot inspected. This completes the failure-message release step, not the blocked complete-weather acceptance gate.
