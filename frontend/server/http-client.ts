@@ -1,5 +1,6 @@
 import { JsonClient, JsonOptions, ProviderError } from './contracts';
 import { rateLimitEvidence, retryDeadline } from './rate-limit';
+import type {WeatherBudget} from './weather-budget';
 
 interface Entry { expires: number; value: unknown; bytes: number }
 export interface HttpClientOptions {
@@ -9,6 +10,7 @@ export interface HttpClientOptions {
   maxEntries?: number;
   maxCacheBytes?: number;
   concurrency?: number;
+  budgets?: Record<string, WeatherBudget>;
 }
 /** Per-process bounded cache and request coalescing. Rejections are never cached as successful data. */
 export function createHttpClient(config: HttpClientOptions): JsonClient {
@@ -38,6 +40,8 @@ export function createHttpClient(config: HttpClientOptions): JsonClient {
     const timeout = setTimeout(() => controller.abort(), Math.max(100, Math.min(25000, options.timeoutMs ?? 12000)));
     try {
       if ((cooldown.get(url.origin) ?? 0) > now()) throw new ProviderError('rate-limited', 'The data provider is temporarily rate limiting requests.', cooldown.get(url.origin));
+      const budget = config.budgets?.[url.origin];
+      if (budget) await budget.reserve(options.quotaUnits ?? 1);
       const response = await fetcher(url, {
         method: options.method ?? 'GET', body: options.body, signal: controller.signal,
         // Some edge runtimes support only follow/manual. Never follow a redirect.
@@ -51,6 +55,7 @@ export function createHttpClient(config: HttpClientOptions): JsonClient {
         cooldown.set(url.origin, retryAt);
         console.warn('Provider rate-limit response', {origin:url.origin,status:429,reason:evidence.reason,format:evidence.format,
           retryAfter:retry && /^(?:\d+|[\w, :+-]+)$/.test(retry) ? retry.slice(0,80) : null,retryAt:new Date(retryAt).toISOString()});
+        if (budget) await budget.block(retryAt);
         throw new ProviderError('rate-limited', 'The data provider is temporarily rate limiting requests.', retryAt);
       }
       if (!response.ok) { await response.body?.cancel(); throw new ProviderError('unavailable', `The data provider returned HTTP ${response.status}.`); }

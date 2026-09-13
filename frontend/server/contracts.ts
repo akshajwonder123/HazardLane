@@ -7,6 +7,8 @@ export interface JsonOptions {
   method?: 'GET' | 'POST';
   body?: string;
   headers?: Record<string, string>;
+  /** Weighted provider units, not the number of HTTP requests. */
+  quotaUnits?: number;
 }
 /** URLs are built only by server adapters. The shared client restricts them to configured origins. */
 export interface JsonClient { json(url: string, options: JsonOptions): Promise<unknown> }

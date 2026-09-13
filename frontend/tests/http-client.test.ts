@@ -1,8 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHttpClient } from '../server/http-client';
+import { ProviderError } from '../server/contracts';
 
 const origin='https://provider.example';
+test('shared budget reserves weighted misses once, and fresh cache consumes no capacity',async()=>{
+  const units:number[]=[];let calls=0;
+  const client=createHttpClient({allowedOrigins:[origin],budgets:{[origin]:{reserve:async n=>{units.push(n);},block:async()=>{}}},fetcher:async()=>{calls++;return Response.json({ok:true});}});
+  await Promise.all([client.json(origin,{ttlMs:10000,quotaUnits:32}),client.json(origin,{ttlMs:10000,quotaUnits:32})]);
+  await client.json(origin,{ttlMs:10000,quotaUnits:32});
+  assert.deepEqual(units,[32]);assert.equal(calls,1);
+});
+test('shared budget denial or storage failure prevents upstream requests',async()=>{
+  let calls=0;
+  for(const code of ['rate-limited','unavailable'] as const){
+    const client=createHttpClient({allowedOrigins:[origin],budgets:{[origin]:{reserve:async()=>{throw new ProviderError(code,'Budget unavailable',86400000);},block:async()=>{}}},fetcher:async()=>{calls++;return Response.json({});}});
+    await assert.rejects(client.json(origin,{ttlMs:0}),error=>error instanceof ProviderError&&error.code===code);
+  }
+  assert.equal(calls,0);
+});
+test('provider daily quota response persists its full shared cooldown without retrying',async()=>{
+  const deadlines:number[]=[];let calls=0;
+  const client=createHttpClient({allowedOrigins:[origin],now:()=>1000,budgets:{[origin]:{reserve:async()=>{},block:async deadline=>{deadlines.push(deadline);}}},fetcher:async()=>{calls++;return Response.json({error:true,reason:'Daily API request limit exceeded. Please try again tomorrow.'},{status:429});}});
+  await assert.rejects(client.json(origin,{ttlMs:0}),error=>error instanceof ProviderError&&error.retryAt===86401000);
+  await assert.rejects(client.json(origin+'/other',{ttlMs:0}));
+  assert.deepEqual(deadlines,[86401000]);assert.equal(calls,1);
+});
 test('default fetch resolves the request-time runtime binding with its global receiver',async()=>{
   const original=globalThis.fetch;
   const client=createHttpClient({allowedOrigins:[origin]});

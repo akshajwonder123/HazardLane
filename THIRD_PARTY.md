@@ -26,3 +26,5 @@ Exact versions are locked in frontend/package-lock.json. Their own license files
 | esbuild, tsx | MIT |
 
 The build copies MapLibre's standalone worker, shared module, and LICENSE to the public vendor directory. Next/esbuild-generated license notices are retained. Transitive dependencies retain their respective licenses; inspect the lockfile and installed packages when preparing a redistribution. Provider names identify sources and do not imply endorsement of StormRoute's scores.
+
+Schema generation uses Drizzle Kit (MIT) and Drizzle ORM (Apache-2.0) as development dependencies; their installed license files are authoritative.

@@ -123,3 +123,7 @@ The last check expects the production-style website already running on port 3000
 No account, journey-history database, advertising, analytics SDK, or runtime AI service is included. Search text and coordinates go to relevant providers. Responses are temporarily cached in server memory; providers and hosting infrastructure have their own logging/retention practices. Map tiles are fetched by the browser. Do not infer that third-party requests are anonymous or never logged.
 
 The map displays OpenFreeMap, OpenMapTiles, and OpenStreetMap attribution. Weather is provided by Open-Meteo (CC BY 4.0); StormRoute transforms those forecasts into an experimental index. NWS/NOAA provides US alerts and reference boundaries. Iowa DOT provides regional construction reports. See [THIRD_PARTY.md](THIRD_PARTY.md) for links and dependency notices. No endorsement by a data provider is implied.
+
+### Hosted weather capacity
+
+The hosted Worker uses a shared D1 counter to cap uncached forecast locations across instances (500/minute,4,000/hour,8,000/day) and persist provider cooldowns. Only counters and deadlines are stored; no journey history or coordinates. The local Node setup still needs no database. Fresh coordinate forecasts are reused for ten minutes; provider cooldowns respect Retry-After and known daily/hourly limits. Free public service availability is not guaranteed, including when other applications share upstream network capacity. See docs/WEATHER_RELIABILITY.md for evidence and pending release checks.

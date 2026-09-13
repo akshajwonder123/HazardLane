@@ -298,7 +298,7 @@ export function createWeatherProvider(client: JsonClient, baseUrl = 'https://api
         try {
           payload = await client.json(new URL(`/v1/forecast?${parameters.toString()}`, baseUrl).toString(), {
             // Coordinate cache owns freshness; a second batch cache must not restart its TTL.
-            ttlMs: 0, timeoutMs: 8_000, maxBytes: 1_500_000,
+            ttlMs: 0, timeoutMs: 8_000, maxBytes: 1_500_000, quotaUnits: owned.length,
           });
           received = true;
         } catch (error) {

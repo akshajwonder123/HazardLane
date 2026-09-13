@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "db:generate": "drizzle-kit generate",
     "predev": "node scripts/prepare-assets.mjs",
     "prebuild": "node scripts/prepare-assets.mjs",
     "dev": "node scripts/dev.mjs",
@@ -23,6 +24,8 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
+    "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
     "esbuild": "^0.28.2",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
