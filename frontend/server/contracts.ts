@@ -20,5 +20,5 @@ export interface AlertProvider { alerts(route: DrivingRoute): Promise<ProviderRe
 export interface RoadProvider { attributes(route: DrivingRoute, samples: Sample[]): Promise<ProviderResult<(RoadAttributes | null)[]>> }
 export interface RoadEventProvider { events(route: DrivingRoute): Promise<ProviderResult<RoadEvent[]>> }
 export class ProviderError extends Error {
-  constructor(public readonly code: 'unavailable' | 'rate-limited' | 'invalid-response' | 'no-route', message: string) { super(message); this.name = 'ProviderError'; }
+  constructor(public readonly code: 'unavailable' | 'rate-limited' | 'invalid-response' | 'no-route', message: string, public readonly retryAt?: number) { super(message); this.name = 'ProviderError'; }
 }

@@ -67,7 +67,7 @@ export function createApi(options: ApiOptions) {
       analyses++;
       try{return json(await options.analyzer.analyze(from,to));}finally{analyses--;}
     }catch(error){
-      if(error instanceof ProviderError)return json({error:error.message},error.code==='no-route'?422:error.code==='rate-limited'?429:503);
+      if(error instanceof ProviderError)return json({error:error.message},error.code==='no-route'?422:error.code==='rate-limited'?429:503,error.code==='rate-limited'&&error.retryAt?{'Retry-After':String(Math.max(1,Math.ceil((error.retryAt-now())/1000)))}:{});
       return json({error:'Route data could not be loaded. Please try again.'},503);
     }
   };

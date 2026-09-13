@@ -1,5 +1,13 @@
 # StormRoute working state
 
+## Resumed reliability review — 2026-09-13
+
+User explicitly requested investigation and resilience before accepting any successful retry; previous blocked status is historical, not a reason to stop this work. New backoff/coordinate-cache edits are being integrated. Root verified42focused HTTP/API/rate-limit/weather/analyzer tests. Actual hosted429body/Retry-After still must be captured using new bounded diagnostics, then production robustness assessed before final hosted acceptance. No live weather requests made during this review yet. Do not treat a lucky retry as resolution.
+
+Findings: max192sampled/unique coordinates =>6HTTP batches but up to192weighted Open-Meteo calls (maintainer confirms per-coordinate accounting).7variables/3days incur no extra variable/horizon multiplier. Per-process analysis2/min20/hr40/day budgets imply384/3840/7680weighted calls worst case, below provider600/5000/10000 limits only for one instance; Worker counters/cooldowns are not shared. Existing entire-ordered-batch cache wasted overlap. New bounded256coordinate/8MB raw-hourly cache reuses exactrounded coordinates for10min, coalesces inflight misses and recalculates arrival values; no stale fallback or reduced sampling. Root disabled secondary HTTP TTL for forecasts to avoid extending freshness, fixed undefined-payload promise settlement and preserves cached later batches after429 while stopping unsent requests. Existing risk/calibration source unchanged.
+
+HTTP backoff now respects delta-seconds/HTTP-date Retry-After without5min truncation, uses known daily/hourly body reasons for conservative deadlines and exponential fallback for repeated unqualified429s. No automatic retries; cached fresh successes may still serve. Bounded429diagnostic captures only recognized quota reasons and safe header/deadline metadata, not journeys. Next: extra edge-case regressions, type/build, checkpoint/publish diagnostic/resilience changes, inspect one legitimate hosted429response when cooldown permits; then address remaining shared-instance reliability as justified by evidence. Current reliability milestone not yet deployed or complete.
+
 Updated 2026-09-12T21:48:50Z. **Goal blocked by hosted weather availability; MVP incomplete.** Resume only the unfinished hosted-weather and final-acceptance gates. Full objective: docs/GOAL_OBJECTIVE.md. Operating policy: docs/OPERATING_POLICY.md and AGENTS.md. Previous turn made concrete progress: clearer provider failure details, verified production build, private version6 and browser validation. Do not redo completed risk fixes, coverage checks or clean installation.
 
 ## Current release gate and exact next task

@@ -7,6 +7,9 @@ const COORDINATE_BATCH_SIZE = 32;
 const COORDINATE_PRECISION = 10_000;
 const RESPONSE_COORDINATE_TOLERANCE = 0.1;
 const HOUR_MS = 60 * 60 * 1000;
+const WEATHER_CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_WEATHER_CACHE_ENTRIES = 256;
+const MAX_WEATHER_CACHE_BYTES = 8 * 1024 * 1024;
 const HOURLY_FIELDS = [
   'temperature_2m', 'precipitation', 'snowfall', 'wind_speed_10m',
   'wind_gusts_10m', 'visibility', 'weather_code',
@@ -19,6 +22,23 @@ interface CoordinateGroup {
   coordinate: Coordinate;
   sampleIndexes: number[];
   arrivalTimes: number[];
+}
+
+interface CachedResponse {
+  response: UnknownRecord;
+  expiresAt: number;
+  bytes: number;
+}
+
+interface FetchOutcome {
+  response: UnknownRecord | null;
+  detail?: string;
+  rateLimited?: boolean;
+}
+
+interface PendingResponse {
+  promise: Promise<FetchOutcome>;
+  resolve: (outcome: FetchOutcome) => void;
 }
 
 function record(value: unknown): UnknownRecord | null {
@@ -99,7 +119,7 @@ function responseMatchesCoordinate(response: UnknownRecord, requested: Coordinat
     Math.abs((((longitude - requested[0]) + 540) % 360) - 180) <= RESPONSE_COORDINATE_TOLERANCE;
 }
 
-function weatherAt(response: unknown, requested: Coordinate, arrivalTime: number): Weather | null {
+function validHourlyResponse(response: unknown, requested: Coordinate): UnknownRecord | null {
   const root = record(response);
   if (!root || !responseMatchesCoordinate(root, requested)) return null;
   const hourly = record(root.hourly);
@@ -108,7 +128,16 @@ function weatherAt(response: unknown, requested: Coordinate, arrivalTime: number
   const parsedTimes = hourly.time.map(providerHourTimestamp);
   if (parsedTimes.some(time => time === null)) return null;
   const times = parsedTimes as number[];
-  if (times.some((time, index) => index > 0 && time <= times[index - 1])) return null;
+  return times.some((time, index) => index > 0 && time <= times[index - 1]) ? null : root;
+}
+
+function weatherAt(response: unknown, requested: Coordinate, arrivalTime: number): Weather | null {
+  const root = validHourlyResponse(response, requested);
+  if (!root) return null;
+  const hourly = record(root.hourly);
+  if (!hourly || !Array.isArray(hourly.time)) return null;
+  const parsedTimes = hourly.time.map(providerHourTimestamp);
+  const times = parsedTimes as number[];
   // Open-Meteo labels precipitation, snowfall and wind gusts by the END of the
   // preceding hour. At 13:20, use their 14:00 values (13:00-14:00). Temperature,
   // sustained wind, visibility and code are instantaneous, so use the closest
@@ -170,7 +199,43 @@ function statusFor(values: Array<Weather | null>, failedBatchDetails: Set<string
 }
 
 /** Open-Meteo adapter. The client owns origin restrictions, caching and network timeouts. */
-export function createWeatherProvider(client: JsonClient, baseUrl = 'https://api.open-meteo.com'): WeatherProvider {
+export function createWeatherProvider(client: JsonClient, baseUrl = 'https://api.open-meteo.com', now = () => Date.now()): WeatherProvider {
+  const cache = new Map<string, CachedResponse>();
+  const pending = new Map<string, PendingResponse>();
+  let cachedBytes = 0;
+
+  const removeCache = (key: string) => {
+    const entry = cache.get(key);
+    if (!entry) return;
+    cache.delete(key);
+    cachedBytes -= entry.bytes;
+  };
+  const cached = (key: string, at: number): UnknownRecord | null => {
+    const entry = cache.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt <= at) {
+      removeCache(key);
+      return null;
+    }
+    // Promote reads so the bounded cache retains coordinates used by overlapping routes.
+    cache.delete(key);
+    cache.set(key, entry);
+    return entry.response;
+  };
+  const remember = (key: string, response: UnknownRecord, at: number) => {
+    let bytes: number;
+    try { bytes = JSON.stringify(response).length; } catch { return; }
+    if (bytes > MAX_WEATHER_CACHE_BYTES) return;
+    removeCache(key);
+    cache.set(key, { response, expiresAt: at + WEATHER_CACHE_TTL_MS, bytes });
+    cachedBytes += bytes;
+    while (cache.size > MAX_WEATHER_CACHE_ENTRIES || cachedBytes > MAX_WEATHER_CACHE_BYTES) {
+      const oldest = cache.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      removeCache(oldest);
+    }
+  };
+
   return {
     async forecast(samples: Sample[]): Promise<ProviderResult<Array<Weather | null>>> {
       if (!Array.isArray(samples)) throw new ProviderError('invalid-response', 'Weather samples must be an array.');
@@ -193,37 +258,90 @@ export function createWeatherProvider(client: JsonClient, baseUrl = 'https://api
       const failedBatchDetails = new Set<string>();
       const allGroups = [...groups.values()];
       const batches = Array.from({ length: Math.ceil(allGroups.length / COORDINATE_BATCH_SIZE) }, (_, index) => allGroups.slice(index * COORDINATE_BATCH_SIZE, (index + 1) * COORDINATE_BATCH_SIZE));
-      const fetchBatch = async (batch: CoordinateGroup[]) => {
+      let stopAfterRateLimit = false;
+      const fetchBatch = async (batch: CoordinateGroup[], allowNetwork: boolean) => {
+        const at = now();
+        const outcomes = new Map<CoordinateGroup, FetchOutcome>();
+        const owned: Array<{ group: CoordinateGroup; key: string; pending: PendingResponse }> = [];
+        const waiting: Array<{ group: CoordinateGroup; pending: PendingResponse }> = [];
+        for (const group of batch) {
+          const key = coordinateKey(group.coordinate);
+          const existing = cached(key, at);
+          if (existing) {
+            outcomes.set(group, { response: existing });
+            continue;
+          }
+          const inFlight = pending.get(key);
+          if (inFlight) {
+            waiting.push({ group, pending: inFlight });
+            continue;
+          }
+          if (!allowNetwork) {
+            outcomes.set(group, {response:null,rateLimited:true,detail:'Open-Meteo temporarily rate limited forecast requests.'});
+            continue;
+          }
+          let resolve!: (outcome: FetchOutcome) => void;
+          const promise = new Promise<FetchOutcome>(done => { resolve = done; });
+          const pendingResponse = { promise, resolve };
+          pending.set(key, pendingResponse);
+          owned.push({ group, key, pending: pendingResponse });
+        }
+        if (owned.length) {
         const parameters = new URLSearchParams({
-          latitude: batch.map(group => String(group.coordinate[1])).join(','),
-          longitude: batch.map(group => String(group.coordinate[0])).join(','),
+          latitude: owned.map(({ group }) => String(group.coordinate[1])).join(','),
+          longitude: owned.map(({ group }) => String(group.coordinate[0])).join(','),
           hourly: HOURLY_FIELDS.join(','),
           timezone: 'GMT', forecast_days: '3', temperature_unit: 'celsius', precipitation_unit: 'mm', wind_speed_unit: 'kmh',
         });
         let payload: unknown;
+        let received = false;
         try {
           payload = await client.json(new URL(`/v1/forecast?${parameters.toString()}`, baseUrl).toString(), {
-            ttlMs: 10 * 60 * 1000, timeoutMs: 8_000, maxBytes: 1_500_000,
+            // Coordinate cache owns freshness; a second batch cache must not restart its TTL.
+            ttlMs: 0, timeoutMs: 8_000, maxBytes: 1_500_000,
           });
+          received = true;
         } catch (error) {
-          failedBatchDetails.add(batchFailureDetail(error));
-          return;
+          const detail = batchFailureDetail(error);
+          const rateLimited = error instanceof ProviderError && error.code === 'rate-limited';
+          for (const item of owned) item.pending.resolve({ response: null, detail, rateLimited });
         }
-        const responses = responseList(payload, batch.length);
-        if (!responses) {
-          failedBatchDetails.add('Open-Meteo returned unusable forecast data.');
-          return;
+        if (received) {
+          const responses = responseList(payload, owned.length);
+          if (!responses) {
+            for (const item of owned) item.pending.resolve({ response: null, detail: 'Open-Meteo returned unusable forecast data.' });
+          } else {
+            for (let groupIndex = 0; groupIndex < owned.length; groupIndex++) {
+              const item = owned[groupIndex];
+              const response = validHourlyResponse(responses[groupIndex], item.group.coordinate);
+              if (response) {
+                remember(item.key, response, at);
+                item.pending.resolve({ response });
+              } else item.pending.resolve({ response: null, detail: 'Open-Meteo returned unusable forecast data.' });
+            }
+          }
         }
-        for (let groupIndex = 0; groupIndex < batch.length; groupIndex++) {
-          const group = batch[groupIndex];
+        }
+        for (const item of owned) {
+          const outcome = await item.pending.promise;
+          outcomes.set(item.group, outcome);
+          if (pending.get(item.key) === item.pending) pending.delete(item.key);
+        }
+        for (const item of waiting) outcomes.set(item.group, await item.pending.promise);
+        for (const group of batch) {
+          const outcome = outcomes.get(group);
+          if (!outcome) continue;
+          if (outcome.detail) failedBatchDetails.add(outcome.detail);
+          if (outcome.rateLimited) stopAfterRateLimit = true;
+          if (!outcome.response) continue;
           for (let sampleIndex = 0; sampleIndex < group.sampleIndexes.length; sampleIndex++) {
-            values[group.sampleIndexes[sampleIndex]] = weatherAt(responses[groupIndex], group.coordinate, group.arrivalTimes[sampleIndex]);
+            values[group.sampleIndexes[sampleIndex]] = weatherAt(outcome.response, group.coordinate, group.arrivalTimes[sampleIndex]);
           }
         }
       };
       // Two concurrent upstream batches keep long routes responsive without making
       // a burst of six requests to a free shared provider.
-      for (let start = 0; start < batches.length; start += 2) await Promise.all(batches.slice(start, start + 2).map(fetchBatch));
+      for (let start = 0; start < batches.length; start += 2) await Promise.all(batches.slice(start, start + 2).map(batch=>fetchBatch(batch,!stopAfterRateLimit)));
       return { value: values, status: statusFor(values, failedBatchDetails) };
     },
   };

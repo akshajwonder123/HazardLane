@@ -36,6 +36,15 @@ test('respects host cooldown after rate limiting, then retries after expiry',asy
   await assert.rejects(client.json(origin+'/b',{ttlMs:0}),/rate limit/);assert.equal(calls,1);
   now=5001;assert.deepEqual(await client.json(origin+'/b',{ttlMs:0}),{ok:true});assert.equal(calls,2);
 });
+test('a long Retry-After blocks different URLs, but fresh cached data is still usable',async()=>{
+  let now=0,calls=0;
+  const client=createHttpClient({allowedOrigins:[origin],now:()=>now,fetcher:async()=>++calls===1?Response.json({ok:true}):new Response('',{status:429,headers:{'Retry-After':'7200'}})});
+  await client.json(origin+'/cached',{ttlMs:10000000});
+  await assert.rejects(client.json(origin+'/limited',{ttlMs:0}),error=>!!error&&typeof error==='object'&&'retryAt'in error&&error.retryAt===7200000);
+  now=600000;
+  assert.deepEqual(await client.json(origin+'/cached',{ttlMs:10000000}),{ok:true});
+  await assert.rejects(client.json(origin+'/another',{ttlMs:0}),/rate limit/);assert.equal(calls,2);
+});
 test('bounds concurrency and rejects malformed JSON without poisoning later requests',async()=>{
   let active=0,peak=0,calls=0;
   const client=createHttpClient({allowedOrigins:[origin],concurrency:2,fetcher:async()=>{

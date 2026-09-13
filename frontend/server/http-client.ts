@@ -1,4 +1,5 @@
 import { JsonClient, JsonOptions, ProviderError } from './contracts';
+import { rateLimitEvidence, retryDeadline } from './rate-limit';
 
 interface Entry { expires: number; value: unknown; bytes: number }
 export interface HttpClientOptions {
@@ -21,6 +22,7 @@ export function createHttpClient(config: HttpClientOptions): JsonClient {
   const maxEntries = Math.max(1, config.maxEntries ?? 256), maxCacheBytes = Math.max(1, config.maxCacheBytes ?? 24 * 1024 * 1024);
   const concurrency = Math.max(1, Math.min(16, config.concurrency ?? 6));
   const cache = new Map<string, Entry>(), pending = new Map<string, Promise<unknown>>(), cooldown = new Map<string, number>();
+  const strikes = new Map<string, number>();
   const queue: (() => void)[] = [];
   let bytes = 0, active = 0;
   function remove(key: string) { const entry = cache.get(key); if (entry) { bytes -= entry.bytes; cache.delete(key); } }
@@ -35,7 +37,7 @@ export function createHttpClient(config: HttpClientOptions): JsonClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), Math.max(100, Math.min(25000, options.timeoutMs ?? 12000)));
     try {
-      if ((cooldown.get(url.origin) ?? 0) > now()) throw new ProviderError('rate-limited', 'The data provider is temporarily rate limiting requests.');
+      if ((cooldown.get(url.origin) ?? 0) > now()) throw new ProviderError('rate-limited', 'The data provider is temporarily rate limiting requests.', cooldown.get(url.origin));
       const response = await fetcher(url, {
         method: options.method ?? 'GET', body: options.body, signal: controller.signal,
         // Some edge runtimes support only follow/manual. Never follow a redirect.
@@ -43,12 +45,16 @@ export function createHttpClient(config: HttpClientOptions): JsonClient {
       });
       if (response.status === 429) {
         const retry = response.headers.get('retry-after');
-        const seconds = retry && /^\d+$/.test(retry) ? Number(retry) : 60;
-        cooldown.set(url.origin, now() + Math.max(1000, Math.min(300000, seconds * 1000)));
-        await response.body?.cancel();
-        throw new ProviderError('rate-limited', 'The data provider is temporarily rate limiting requests.');
+        const evidence = await rateLimitEvidence(response);
+        const failures = Math.min(7, (strikes.get(url.origin) ?? 0) + 1); strikes.set(url.origin, failures);
+        const retryAt = Math.max(cooldown.get(url.origin) ?? 0, retryDeadline(retry, evidence.reason, now(), failures));
+        cooldown.set(url.origin, retryAt);
+        console.warn('Provider rate-limit response', {origin:url.origin,status:429,reason:evidence.reason,format:evidence.format,
+          retryAfter:retry && /^(?:\d+|[\w, :+-]+)$/.test(retry) ? retry.slice(0,80) : null,retryAt:new Date(retryAt).toISOString()});
+        throw new ProviderError('rate-limited', 'The data provider is temporarily rate limiting requests.', retryAt);
       }
       if (!response.ok) { await response.body?.cancel(); throw new ProviderError('unavailable', `The data provider returned HTTP ${response.status}.`); }
+      if ((cooldown.get(url.origin) ?? 0) <= now()) { strikes.delete(url.origin); cooldown.delete(url.origin); }
       const maxBytes = Math.max(1, Math.min(12 * 1024 * 1024, options.maxBytes ?? 4 * 1024 * 1024));
       const advertised = Number(response.headers.get('content-length'));
       if (Number.isFinite(advertised) && advertised > maxBytes) { await response.body?.cancel(); throw new ProviderError('invalid-response', 'The provider response exceeded the size limit.'); }

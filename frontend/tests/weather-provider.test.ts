@@ -129,3 +129,75 @@ test('a total forecast outage keeps values unknown and distinguishes safe failur
     assert.doesNotMatch(result.status.detail,/private provider body|upstream/);
   }
 });
+
+test('reuses fresh raw coordinate rows across reordered overlapping analyses while applying each arrival time', async () => {
+  let calls = 0;
+  const client: JsonClient = { json: async url => {
+    calls++;
+    const parsed = new URL(url);
+    const latitudes = parsed.searchParams.get('latitude')!.split(',').map(Number);
+    const longitudes = parsed.searchParams.get('longitude')!.split(',').map(Number);
+    return latitudes.map((latitude, index) => hourly(latitude, longitudes[index]));
+  } };
+  const provider = createWeatherProvider(client);
+  await provider.forecast([sample(-74, 40), sample(-75, 41)]);
+  const second = await provider.forecast([sample(-75, 41, '2026-09-09T13:20:00Z'), sample(-74, 40)]);
+  assert.equal(calls, 1);
+  assert.equal(second.value[0]?.temperatureC, 5);
+  assert.equal(second.value[0]?.precipitationMm, 7.5);
+});
+
+test('expires coordinate rows after ten minutes and coalesces simultaneous coordinate misses', async () => {
+  let clock = 0;
+  let calls = 0;
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const client: JsonClient = { json: async () => {
+    calls++;
+    if (calls === 1) await gate;
+    return hourly(40, -74);
+  } };
+  const provider = createWeatherProvider(client, 'https://api.open-meteo.com', () => clock);
+  const first = provider.forecast([sample(-74, 40)]);
+  const second = provider.forecast([sample(-74, 40, '2026-09-09T13:20:00Z')]);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(calls, 1);
+  release();
+  const [, shared] = await Promise.all([first, second]);
+  assert.equal(shared.value[0]?.temperatureC, 5);
+  clock = 10 * 60 * 1000 + 1;
+  await provider.forecast([sample(-74, 40)]);
+  assert.equal(calls, 2);
+});
+
+test('stops later unsent batches after a rate limit while retaining the other in-flight batch', async () => {
+  let calls = 0;
+  const client: JsonClient = { json: async url => {
+    calls++;
+    if (calls === 1) throw new ProviderError('rate-limited', 'quota');
+    const parsed = new URL(url);
+    const latitudes = parsed.searchParams.get('latitude')!.split(',').map(Number);
+    const longitudes = parsed.searchParams.get('longitude')!.split(',').map(Number);
+    return latitudes.map((latitude, index) => hourly(latitude, longitudes[index]));
+  } };
+  const result = await createWeatherProvider(client).forecast(Array.from({ length: 96 }, (_, index) => sample(index, index % 90)));
+  assert.equal(calls, 2);
+  assert.equal(result.status.state, 'partial');
+  assert.match(result.status.detail, /rate limited/i);
+  assert.equal(result.value.filter(Boolean).length, 32);
+});
+
+test('bounds the raw coordinate cache to 256 entries', async () => {
+  let calls = 0;
+  const client: JsonClient = { json: async url => {
+    calls++;
+    const parsed = new URL(url);
+    const latitude = Number(parsed.searchParams.get('latitude'));
+    const longitude = Number(parsed.searchParams.get('longitude'));
+    return hourly(latitude, longitude);
+  } };
+  const provider = createWeatherProvider(client);
+  for (let index = 0; index <= 256; index++) await provider.forecast([sample(index % 180, Math.floor(index / 180))]);
+  await provider.forecast([sample(0, 0)]);
+  assert.equal(calls, 258);
+});
