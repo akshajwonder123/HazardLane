@@ -30,3 +30,8 @@ test('known no-route and unexpected provider errors produce useful bounded respo
   const res=await api(routeRequest({origin:from,destination:to}));assert.equal(res.status,422);
   const failed=await api(new Request('http://localhost/api/search?q=Boston'));assert.equal(failed.status,503);assert.ok(!(await failed.text()).includes('private internals'));
 });
+test('provider Retry-After reaches callers without shortening a long cooldown',async()=>{
+  const api=createApi({now:()=>1000,geocoder:{search:async()=>{throw new ProviderError('rate-limited','Please wait.',7201000);}},analyzer:{analyze:async()=>{throw new Error('unused');}}});
+  const result=await api(new Request('http://localhost/api/search?q=Boston'));
+  assert.equal(result.status,429);assert.equal(result.headers.get('Retry-After'),'7200');
+});

@@ -201,3 +201,24 @@ test('bounds the raw coordinate cache to 256 entries', async () => {
   await provider.forecast([sample(0, 0)]);
   assert.equal(calls, 258);
 });
+
+test('rate limiting preserves cached coordinates in later batches without sending them',async()=>{
+  let calls=0;
+  const client:JsonClient={json:async(url,options)=>{
+    assert.equal(options.ttlMs,0,'only the coordinate cache owns forecast freshness');
+    calls++;if(calls===2)throw new ProviderError('rate-limited','quota');
+    const params=new URL(url).searchParams,lat=params.get('latitude')!.split(',').map(Number),lon=params.get('longitude')!.split(',').map(Number);
+    return lat.map((x,i)=>hourly(x,lon[i]));
+  }};
+  const provider=createWeatherProvider(client);
+  await provider.forecast([sample(95,5)]);
+  const result=await provider.forecast(Array.from({length:96},(_,i)=>sample(i,i%90)));
+  assert.equal(calls,3);assert.ok(result.value[95]);assert.equal(result.value.filter(Boolean).length,33);
+});
+
+test('undefined provider payload settles pending coordinates and permits a later request',{timeout:1000},async()=>{
+  let calls=0;
+  const provider=createWeatherProvider({json:async()=>++calls===1?undefined:hourly(40,-74)});
+  assert.equal((await provider.forecast([sample(-74,40)])).value[0],null);
+  assert.ok((await provider.forecast([sample(-74,40)])).value[0]);
+});
