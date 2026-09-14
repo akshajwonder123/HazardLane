@@ -1,14 +1,19 @@
 # StormRoute working state
 
+## Active release work — September 14, 2026
+
+Previous turn made progress: published D1guard and saved81134f7. Usage-blocked installation did not run September13. Today installed Next15.5.25 successfully (three packages changed), keeping existing major; audit no longer reports critical vulnerability. docs/DEPENDENCY_REVIEW.md records remaining build/unused-image advisories and actual runtime exposure. Full documented root production build session45743 completed exit0, including static export, typechecking and Node/Worker bundles. No risk-engine changes or repeated completed coverage audit.
+
+One legitimate small hosted analysis after the full weather deadline returned providerHTTP502 at routing. Native D1row read remained empty, proving forecast admission was never reached. No rapid retries or quota bypass. Version8 remains the deployed source; local dependency patch needs verified build, Gitcheckpoint, isolated clean setup/build/start, private publish, then hosted weather/full-objective acceptance. MVP incomplete. Current token usage had resumed successfully; no new approval blocker.
 ## Current checkpoint — shared weather guard, 2026-09-13
 
-This section supersedes historical status below. MVP remains incomplete. Version7 remains deployed; the new D1 guard is locally integrated and verified but NOT deployed yet. Actual hosted daily429 cooldown ends2026-09-14T17:55:23.578Z (13:55 Eastern). Do not send weather probes before then, even after restart/deployment.
+This section supersedes historical status below. MVP remains incomplete. Version8 is privately deployed with the D1 guard; publication details below record the successful terminal result. Actual hosted daily429 cooldown ends2026-09-14T17:55:23.578Z (13:55 Eastern). Do not send weather probes before then, even after restart/deployment.
 
 Completed this checkpoint: singleton D1 weighted weather admission at500/minute,4000/hour,8000/day; atomic quota reservation per uncached coordinate batch; durable monotonic provider cooldown; correct exhausted-window retry deadline; fail-closed missing/malformed storage. No journey/coordinate/forecast data stored in D1. Node local use needs no database or keys. Generated migration and Drizzle metadata reviewed. HTTP diagnostics survive a subsequent cooldown-storage failure. Worker preserves existing known hold through WEATHER_NOT_BEFORE configuration.
 
 Verification:23 HTTP/backoff/shared-budget/Worker tests plus15 weather-provider tests passed (38total); TypeScript passed; Node/Worker production bundle passed. Full Next static build session19646 completed successfully (exit0). Existing risk/coverage gates were not repeated. Sites environment revision1 now sets WEATHER_NOT_BEFORE=2026-09-14T17:55:23.578Z; it applies on next deployment. Audience unchanged.
 
-Exact next tasks: assess npm audit findings (Next15.5.19,postcss,nanoid,sharp; deployed runtime is independent Worker/static export, but assess advisories before acceptance); verify updated clean setup/build/start with new lockfile. Then package/push/deploy this checkpoint to existing owner-private project with D1 binding DB and root drizzle migrations. Inspect provisioned singleton storage and verify the preserved hold without upstream weather requests. After cooldown, verify actual hosted forecasts and complete docs/RELEASE_AUDIT.md full acceptance. Do not mark MVP complete before these pass. D1 deployment and new clean setup remain unverified; earlier completed clean setup refers to prior source.
+Exact next tasks: assess npm audit findings (Next15.5.19,postcss,nanoid,sharp; deployed runtime is independent Worker/static export, but assess advisories before acceptance); verify updated clean setup/build/start with new lockfile. Then package/push/deploy this checkpoint to existing owner-private project with D1 binding DB and root drizzle migrations. Inspect provisioned singleton storage and verify the preserved hold without upstream weather requests. After cooldown, verify actual hosted forecasts and complete docs/RELEASE_AUDIT.md full acceptance. Do not mark MVP complete before these pass. D1 deployment and table provisioning passed; new clean setup remains unverified; earlier completed clean setup refers to prior source.
 
 ## Resumed reliability review — 2026-09-13
 
