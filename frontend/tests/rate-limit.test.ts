@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {rateLimitEvidence,retryDeadline} from '../server/rate-limit';
+import {rateLimitEvidence,retryDeadline,providerResponseHeaders} from '../server/rate-limit';
+
+test('response diagnostics preserve selected headers and explicitly distinguish absent from redacted without secrets',()=>{
+  const result=providerResponseHeaders(new Headers({'retry-after':'7200','content-type':'application/json','set-cookie':'session=secret','authorization':'Bearer secret','location':'https://private/?token=secret','server':'x'.repeat(161)}));
+  assert.deepEqual(result,{'date':'[absent]','retry-after':'7200','content-type':'application/json','server':'[redacted]','cf-ray':'[absent]'});
+  assert.ok(!JSON.stringify(result).includes('secret'));
+});
 
 test('honors long delta seconds and HTTP dates without shortening the provider delay',()=>{
   const now=Date.parse('2026-09-12T12:00:00Z');

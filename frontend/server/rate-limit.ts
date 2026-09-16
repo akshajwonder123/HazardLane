@@ -1,3 +1,13 @@
+/** Diagnostic allowlist: never collect cookies, authorization, locations or arbitrary headers. */
+export function providerResponseHeaders(headers: Headers): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const name of ['date', 'retry-after', 'content-type', 'server', 'cf-ray']) {
+    const value = headers.get(name);
+    result[name] = value === null ? '[absent]' : value.length > 160 || /[^\x20-\x7e]|https?:|[?]/i.test(value) ? '[redacted]' : value;
+  }
+  return result;
+}
+
 /** Only fixed, recognized provider messages may enter logs; never arbitrary bodies. */
 export async function rateLimitEvidence(response: Response) {
   let body = '', bytes = 0;

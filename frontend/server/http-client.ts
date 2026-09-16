@@ -1,5 +1,5 @@
 import { JsonClient, JsonOptions, ProviderError } from './contracts';
-import { rateLimitEvidence, retryDeadline } from './rate-limit';
+import { rateLimitEvidence, retryDeadline, providerResponseHeaders } from './rate-limit';
 import type {WeatherBudget} from './weather-budget';
 
 interface Entry { expires: number; value: unknown; bytes: number }
@@ -53,12 +53,15 @@ export function createHttpClient(config: HttpClientOptions): JsonClient {
         const failures = Math.min(7, (strikes.get(url.origin) ?? 0) + 1); strikes.set(url.origin, failures);
         const retryAt = Math.max(cooldown.get(url.origin) ?? 0, retryDeadline(retry, evidence.reason, now(), failures));
         cooldown.set(url.origin, retryAt);
-        console.warn('Provider rate-limit response', {origin:url.origin,status:429,reason:evidence.reason,format:evidence.format,
+        console.warn('Provider rate-limit response', {origin:url.origin,status:429,reason:evidence.reason,format:evidence.format, responseHeaders:providerResponseHeaders(response.headers),
           retryAfter:retry && /^(?:\d+|[\w, :+-]+)$/.test(retry) ? retry.slice(0,80) : null,retryAt:new Date(retryAt).toISOString()});
         if (budget) await budget.block(retryAt);
         throw new ProviderError('rate-limited', 'The data provider is temporarily rate limiting requests.', retryAt);
       }
-      if (!response.ok) { await response.body?.cancel(); throw new ProviderError('unavailable', `The data provider returned HTTP ${response.status}.`); }
+      if (!response.ok) {
+        console.warn('Provider HTTP response', {origin:url.origin,status:response.status,responseHeaders:providerResponseHeaders(response.headers)});
+        await response.body?.cancel(); throw new ProviderError('unavailable', `The data provider returned HTTP ${response.status}.`);
+      }
       if ((cooldown.get(url.origin) ?? 0) <= now()) { strikes.delete(url.origin); cooldown.delete(url.origin); }
       const maxBytes = Math.max(1, Math.min(12 * 1024 * 1024, options.maxBytes ?? 4 * 1024 * 1024));
       const advertised = Number(response.headers.get('content-length'));
