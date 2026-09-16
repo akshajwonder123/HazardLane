@@ -8,6 +8,14 @@ const origin={id:'a',label:'A',lat:0,lon:0},destination={id:'b',label:'B',lat:0,
 const route:DrivingRoute={id:'main',name:'Standard route',coordinates:[[0,0],[10,0]],distanceKm:1000,durationSeconds:36000,provider:'fixture',maneuvers:[{startIndex:0,endIndex:1,name:'Test road'}]};
 const weather:Weather={time,temperatureC:20,precipitationMm:0,snowfallCm:0,windKmh:10,gustKmh:15,visibilityM:20000,code:0};
 const status={state:'available' as const,detail:'Fixture data'};
+test('partial fallback remains partial and calm unknown, while real gust hazards survive',async()=>{
+  for(const gustKmh of [15,120]){
+    const p=providers({weather:{forecast:async samples=>({value:samples.map(()=>({...weather,code:null,gustKmh})),status:{state:'partial',detail:'NWS partial fallback'}})}});
+    const r=(await createAnalyzer(p,now).analyze(origin,destination)).routes[0];
+    assert.equal(r.data.weather.state,'partial');assert.equal(r.knownWeatherPercent,0);
+    assert.equal(r.level,gustKmh===15?null:'High Risk');
+  }
+});
 const warning:WeatherAlert={id:'tornado',event:'Tornado Warning',headline:'Tornado Warning',severity:'Extreme',onset:time,expires:'2026-09-10T01:00:00Z',url:'https://www.weather.gov/',geometry:{type:'Polygon',coordinates:[[[4,-1],[4.01,-1],[4.01,1],[4,1],[4,-1]]]}};
 function providers(overrides:Partial<AnalysisProviders>={}):AnalysisProviders{return{router:{routes:async()=>[route]},weather:{forecast:async samples=>({value:samples.map(s=>({...weather,time:s.arrivalTime})),status})},alerts:{alerts:async()=>({value:[],status})},roads:{attributes:async(_r,s)=>({value:s.map(()=>null),status})},events:{events:async()=>({value:[],status})},...overrides};}
 test('splits at exact warning boundaries between forecasts and retains the critical risk floor',async()=>{
