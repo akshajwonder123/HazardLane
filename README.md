@@ -127,3 +127,7 @@ The map displays OpenFreeMap, OpenMapTiles, and OpenStreetMap attribution. Weath
 ### Hosted weather capacity
 
 The hosted Worker uses a shared D1 counter to cap uncached forecast locations across instances (500/minute,4,000/hour,8,000/day) and persist provider cooldowns. Only counters and deadlines are stored; no journey history or coordinates. The local Node setup still needs no database. Fresh coordinate forecasts are reused for ten minutes; provider cooldowns respect Retry-After and known daily/hourly limits. Free public service availability is not guaranteed, including when other applications share upstream network capacity. See docs/WEATHER_RELIABILITY.md for evidence and pending release checks.
+
+### Partial U.S. forecast fallback
+
+When primary forecast rows are unavailable, StormRoute tries cached NWS grid forecasts for up to32distinct locations, with two requests at a time and a12second scheduling budget. NWS can supply verified temperature, wind, gusts and visibility. Only fully covered zero precipitation/snow periods are mapped; positive multi-hour totals and weather codes remain unknown. Each forecast row retains its source, and results explain partial NWS coverage. This can reveal real wind/visibility hazards but cannot establish Low Risk or a reliable safer-route comparison from incomplete data. No paid API or key is required. NWS discovery is cached24hours and grids10minutes; failures and unsampled locations stay unknown.

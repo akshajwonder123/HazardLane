@@ -10,6 +10,7 @@ export interface DrivingRoute {
 }
 export interface Sample { coordinate: Coordinate; distanceKm: number; arrivalTime: string }
 export interface Weather {
+  source?: 'Open-Meteo' | 'NWS';
   time: string; temperatureC: number | null; precipitationMm: number | null; snowfallCm: number | null;
   windKmh: number | null; gustKmh: number | null; visibilityM: number | null; code: number | null;
 }

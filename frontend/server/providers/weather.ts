@@ -157,6 +157,7 @@ function weatherAt(response: unknown, requested: Coordinate, arrivalTime: number
   const wind = validNumber(instant('wind_speed_10m'), 0, 500);
   return {
     time: new Date(arrivalTime).toISOString(),
+    source: 'Open-Meteo',
     temperatureC: validNumber(instant('temperature_2m'), -100, 70),
     precipitationMm: validNumber(aggregate('precipitation'), 0, 500),
     snowfallCm: validNumber(aggregate('snowfall'), 0, 500),
