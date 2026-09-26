@@ -8,6 +8,8 @@ Private release preview: [StormRoute](https://stormroute.akshajwonder.chatgpt.si
 
 ## Run locally
 
+For GitHub → Vercel deployment, use [the exact Vercel settings](docs/VERCEL_DEPLOYMENT.md). No environment variables or API keys are required. Select **Other** with root directory `frontend`; the frontend is a static export with separate API functions.
+
 Prerequisites: **Node.js 22 or newer with npm**, and an internet connection for maps and live data. No Python, Docker, database, API key, account registration, or geographic download is required.
 
 From the repository root:

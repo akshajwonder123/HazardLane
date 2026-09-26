@@ -8,6 +8,7 @@
     "prebuild": "node scripts/prepare-assets.mjs",
     "dev": "node scripts/dev.mjs",
     "build": "next build && node scripts/build-server.mjs --production",
+    "build:vercel": "node scripts/prepare-assets.mjs && next build",
     "test": "node --import tsx --test tests/*.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "start": "node ../dist/node/server.mjs"
