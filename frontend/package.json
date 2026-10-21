@@ -2,6 +2,7 @@
   "name": "stormroute-frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "predev": "node scripts/prepare-assets.mjs",
@@ -11,6 +12,7 @@
     "build:vercel": "node scripts/prepare-assets.mjs && next build",
     "test": "node --import tsx --test tests/*.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
+    "smoke:vercel": "node scripts/smoke-vercel.mjs",
     "start": "node ../dist/node/server.mjs"
   },
   "dependencies": {
