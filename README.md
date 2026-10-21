@@ -1,10 +1,10 @@
-# StormRoute
+# HazardLane
 
 A map-first weather-aware driving planner. Choose an origin and destination, compare real road routes, and see Low, Medium, or High Risk along the journey. Scores are a transparent experimental hazard index—not a crash probability or a guarantee of safe travel.
 
-StormRoute uses public, keyless services and does not call a generative-AI API at runtime. The default configuration is intended for a small noncommercial demonstration, not high-volume navigation.
+HazardLane uses public, keyless services and does not call a generative-AI API at runtime. The default configuration is intended for a small noncommercial demonstration, not high-volume navigation.
 
-Private release preview: [StormRoute](https://stormroute.akshajwonder.chatgpt.site) (owner's ChatGPT sign-in required). Release acceptance is still pending: hosted forecasts are currently rate-limited by Open-Meteo, so the site shows unknown risk. Local live forecasts and clean startup have passed; see [release audit](docs/RELEASE_AUDIT.md) for remaining gates.
+Public deployment: [HazardLane](https://storm-route-two.vercel.app). The new HazardLane Vercel address is pending account-side assignment. Hosted API acceptance remains open: the existing deployment returned HTTP 500 before the branding update. Local verification and the historical [release audit](docs/RELEASE_AUDIT.md) do not establish current hosted availability.
 
 ## Run locally
 
@@ -124,7 +124,7 @@ The last check expects the production-style website already running on port 3000
 
 No account, journey-history database, advertising, analytics SDK, or runtime AI service is included. Search text and coordinates go to relevant providers. Responses are temporarily cached in server memory; providers and hosting infrastructure have their own logging/retention practices. Map tiles are fetched by the browser. Do not infer that third-party requests are anonymous or never logged.
 
-The map displays OpenFreeMap, OpenMapTiles, and OpenStreetMap attribution. Weather is provided by Open-Meteo (CC BY 4.0); StormRoute transforms those forecasts into an experimental index. NWS/NOAA provides US alerts and reference boundaries. Iowa DOT provides regional construction reports. See [THIRD_PARTY.md](THIRD_PARTY.md) for links and dependency notices. No endorsement by a data provider is implied.
+The map displays OpenFreeMap, OpenMapTiles, and OpenStreetMap attribution. Weather is provided by Open-Meteo (CC BY 4.0); HazardLane transforms those forecasts into an experimental index. NWS/NOAA provides US alerts and reference boundaries. Iowa DOT provides regional construction reports. See [THIRD_PARTY.md](THIRD_PARTY.md) for links and dependency notices. No endorsement by a data provider is implied.
 
 ### Hosted weather capacity
 
@@ -132,4 +132,4 @@ The hosted Worker uses a shared D1 counter to cap uncached forecast locations ac
 
 ### Partial U.S. forecast fallback
 
-When primary forecast rows are unavailable, StormRoute tries cached NWS grid forecasts for up to32distinct locations, with two requests at a time and a12second scheduling budget. NWS can supply verified temperature, wind, gusts and visibility. Only fully covered zero precipitation/snow periods are mapped; positive multi-hour totals and weather codes remain unknown. Each forecast row retains its source, and results explain partial NWS coverage. This can reveal real wind/visibility hazards but cannot establish Low Risk or a reliable safer-route comparison from incomplete data. No paid API or key is required. NWS discovery is cached24hours and grids10minutes; failures and unsampled locations stay unknown.
+When primary forecast rows are unavailable, HazardLane tries cached NWS grid forecasts for up to32distinct locations, with two requests at a time and a12second scheduling budget. NWS can supply verified temperature, wind, gusts and visibility. Only fully covered zero precipitation/snow periods are mapped; positive multi-hour totals and weather codes remain unknown. Each forecast row retains its source, and results explain partial NWS coverage. This can reveal real wind/visibility hazards but cannot establish Low Risk or a reliable safer-route comparison from incomplete data. No paid API or key is required. NWS discovery is cached24hours and grids10minutes; failures and unsampled locations stay unknown.

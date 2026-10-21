@@ -44,7 +44,7 @@ export function createApi(options: ApiOptions) {
     const analyzing=url.pathname==='/api/analyze';
     // Retain only a bounded, transient per-client window. A separate global budget cannot be evicted by new client IDs.
     for(const [key,window] of clients)if(now()-window.start>=60000)clients.delete(key);
-    if(clients.size>=2048&&!clients.has(`${clientId}:${analyzing}`))return json({error:'StormRoute is busy. Please try again shortly.'},429,{'Retry-After':'60'});
+    if(clients.size>=2048&&!clients.has(`${clientId}:${analyzing}`))return json({error:'HazardLane is busy. Please try again shortly.'},429,{'Retry-After':'60'});
     const retry=quota(clients,`${clientId}:${analyzing}`,analyzing?4:40,60000)||quota(globals,analyzing?'analysis-minute':'search-minute',analyzing?2:120,60000);
     if(retry)return json({error:'Too many requests. Please wait before trying again.'},429,{'Retry-After':String(retry)});
     try {

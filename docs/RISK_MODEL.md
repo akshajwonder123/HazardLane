@@ -1,4 +1,4 @@
-# StormRoute risk model — experimental MVP
+# HazardLane risk model — experimental MVP
 
 This deterministic index expresses relative driving hazards, not accident probability or a guarantee of safe travel. Scenario calibration is a plausibility check; it is not validation against crash outcomes. The engine is provider-independent and uses no generative AI.
 

@@ -4,8 +4,14 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "StormRoute",
-  description: "Check weather-related road hazard risk before you drive.",
+  title: "HazardLane",
+  description: "HazardLane helps you check weather-related road hazard risk before you drive.",
+  openGraph: {
+    title: "HazardLane",
+    description: "Check weather-related road hazard risk before you drive.",
+    siteName: "HazardLane",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
